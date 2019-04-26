@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"time"
 
@@ -38,6 +39,41 @@ func getTransactions(client *ynab.Client, budgetID string) ([]*ynab.Transaction,
 		return nil, err
 	}
 	return transactionResp.Data.Transactions, nil
+}
+
+func getScheduledTransactions(client *ynab.Client, budgetID string) ([]*ynab.ScheduledTransaction, error) {
+	transactionResp, err := client.Budgets.GetScheduledTransactions(context.TODO(), budgetID, url.Values{})
+	if err != nil {
+		return nil, err
+	}
+	return transactionResp.Data.ScheduledTransactions, nil
+}
+
+func isOutflow(accountMap map[string]*ynab.Account, tx *ynab.Transaction) bool {
+	txnAccount, ok := accountMap[tx.AccountID]
+	if !ok {
+		panic("unknown account: " + txnAccount.ID + " " + txnAccount.Name)
+	}
+	if txnAccount.OnBudget == false {
+		return false
+	}
+	if txnAccount.Type != "cash" && txnAccount.Type != "savings" && txnAccount.Type != "checking" {
+		return false
+	}
+	if tx.Amount >= 0 {
+		// counted as income, don't double count
+		return false
+	}
+	if tx.TransferAccountID.Valid {
+		transferAccount, ok := accountMap[tx.TransferAccountID.String]
+		if !ok {
+			panic("could not find id: " + tx.TransferAccountID.String)
+		}
+		if transferAccount.Type == "cash" || transferAccount.Type == "savings" || transferAccount.Type == "checking" {
+			return false
+		}
+	}
+	return true
 }
 
 func main() {
@@ -83,6 +119,13 @@ func main() {
 		}
 		accountMap[account.ID] = account
 	}
+	scheduledTxns, err := getScheduledTransactions(client, thisBudget.ID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	sort.Slice(scheduledTxns, func(i, j int) bool {
+		return time.Time(scheduledTxns[i].DateNext).Before(time.Time(scheduledTxns[j].DateNext))
+	})
 	var txns []*ynab.Transaction
 
 	if *file != "" {
@@ -150,30 +193,10 @@ func main() {
 	spending := make([]*ynab.Transaction, 0)
 	for i := range txns {
 		tx := txns[i]
-		txnAccount, ok := accountMap[tx.AccountID]
-		if !ok {
-			panic("unknown account: " + txnAccount.ID + " " + txnAccount.Name)
+		if isOutflow(accountMap, tx) {
+			spending = append(spending, tx)
 		}
-		if txnAccount.OnBudget == false {
-			continue
-		}
-		if txnAccount.Type != "cash" && txnAccount.Type != "savings" && txnAccount.Type != "checking" {
-			continue
-		}
-		if tx.Amount >= 0 {
-			// counted as income, don't double count
-			continue
-		}
-		if tx.TransferAccountID.Valid {
-			transferAccount, ok := accountMap[tx.TransferAccountID.String]
-			if !ok {
-				panic("could not find id: " + tx.TransferAccountID.String)
-			}
-			if transferAccount.Type == "cash" || transferAccount.Type == "savings" || transferAccount.Type == "checking" {
-				continue
-			}
-		}
-		spending = append(spending, tx)
+
 	}
 	cumSpent := int64(0)
 	for i := range spending {
@@ -188,7 +211,10 @@ func main() {
 	if len(buckets) == 0 {
 		log.Fatal("Can't generate age of money without any money!")
 	}
+	// Now that we have inflow buckets and outflows, match up spending to the
+	// bucket we spent it in.
 	currentBucketIdx := 0
+	// Amount of money that's been spent from the current bucket.
 	bucketSpend := int64(0)
 	for i := range spending {
 		amount := -1 * spending[i].Amount
@@ -229,6 +255,59 @@ func main() {
 			threshold += buckets[i].Amount
 		}
 		fmt.Printf("%3d %s %10s %s %s\n", ageDays, buckets[i].Date.String(), "$"+amt(threshold), buckets[i].AccountName, buckets[i].PayeeName)
+	}
+	if len(scheduledTxns) == 0 {
+		return
+	}
+	fmt.Println("")
+	fmt.Println("projected age of scheduled transactions:")
+	for i := range scheduledTxns {
+		// TODO the duplication is not great here.
+
+		// lazy type hack
+		txnIsh := &ynab.Transaction{
+			AccountID:         scheduledTxns[i].AccountID,
+			Amount:            scheduledTxns[i].Amount,
+			TransferAccountID: scheduledTxns[i].TransferAccountID,
+		}
+
+		if !isOutflow(accountMap, txnIsh) {
+			continue
+		}
+		amount := -1 * scheduledTxns[i].Amount
+		if amount == 0 {
+			continue
+		}
+		if amount < 0 {
+			panic("spending less than zero")
+		}
+		for amount > 0 {
+			if currentBucketIdx >= len(buckets) {
+				break
+			}
+			if amount < buckets[currentBucketIdx].Amount-bucketSpend {
+				bucketSpend += amount
+				amount = 0
+				continue
+			} else {
+				// exhaust this bucket
+				amount -= buckets[currentBucketIdx].Amount - bucketSpend
+				currentBucketIdx++
+				bucketSpend = 0
+			}
+		}
+		if currentBucketIdx >= len(buckets) {
+			fmt.Printf("money not earned yet. spend on: %s %10s %s %s\n",
+				scheduledTxns[i].DateNext.String(), "$"+amt(-1*scheduledTxns[i].Amount),
+				scheduledTxns[i].AccountName, scheduledTxns[i].PayeeName)
+			break
+		}
+		ageHours := time.Time(scheduledTxns[i].DateNext).Sub(time.Time(buckets[currentBucketIdx].Date)).Hours()
+		ageOfMoney := int(math.Round(float64(ageHours) / 24))
+		fmt.Printf("%3d earned: %s spend on: %s %10s %s %s\n",
+			ageOfMoney, buckets[currentBucketIdx].Date.String(),
+			scheduledTxns[i].DateNext.String(), "$"+amt(-1*scheduledTxns[i].Amount),
+			scheduledTxns[i].AccountName, scheduledTxns[i].PayeeName)
 	}
 }
 

@@ -25,6 +25,14 @@ type TransactionListWrapper struct {
 	Transactions []*Transaction `json:"transactions"`
 }
 
+type ScheduledTransactionListResponse struct {
+	Data ScheduledTransactionListWrapper `json:"data"`
+}
+
+type ScheduledTransactionListWrapper struct {
+	ScheduledTransactions []*ScheduledTransaction `json:"scheduled_transactions"`
+}
+
 type Date time.Time
 
 func (t *Date) UnmarshalJSON(b []byte) error {
@@ -38,6 +46,24 @@ func (t *Date) UnmarshalJSON(b []byte) error {
 
 func (t Date) String() string {
 	return time.Time(t).Format("2006-01-02")
+}
+
+type ScheduledTransaction struct {
+	AccountID         string `json:"account_id"`
+	AccountName       string `json:"account_name"`
+	Amount            int64
+	Approved          bool
+	CategoryName      types.NullString `json:"category_name"`
+	Cleared           string
+	DateFirst         Date `json:"date_first"`
+	DateNext          Date `json:"date_next"`
+	Deleted           bool
+	Frequency         string
+	ID                string `json:"id"`
+	Memo              string
+	PayeeName         string           `json:"payee_name"`
+	TransferAccountID types.NullString `json:"transfer_account_id"`
+	Subtransactions   []Transaction    `json:"subtransactions"`
 }
 
 type Transaction struct {
@@ -61,6 +87,7 @@ type Transaction struct {
 type AccountService struct {
 	client *Client
 }
+
 type Account struct {
 	ID              string
 	Name            string
@@ -126,6 +153,19 @@ func (b *BudgetService) GetTransactions(ctx context.Context, budgetID string, da
 	}
 	req = req.WithContext(ctx)
 	transactionResp := new(TransactionListResponse)
+	if err := b.client.Do(req, transactionResp); err != nil {
+		return nil, err
+	}
+	return transactionResp, nil
+}
+
+func (b *BudgetService) GetScheduledTransactions(ctx context.Context, budgetID string, data url.Values) (*ScheduledTransactionListResponse, error) {
+	req, err := b.client.NewRequest("GET", "/budgets/"+budgetID+"/scheduled_transactions?"+data.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	transactionResp := new(ScheduledTransactionListResponse)
 	if err := b.client.Do(req, transactionResp); err != nil {
 		return nil, err
 	}
