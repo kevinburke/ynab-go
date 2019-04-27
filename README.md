@@ -5,6 +5,8 @@ supported endpoints are the ones necessary to do the Age of Money calculation.
 
 ### Age of Money
 
+This command will print out more information about how old your money is.
+
 Download the `ynab-age-of-money` binary, following the instructions here:
 https://go.equinox.io/github.com/kevinburke/ynab-go/ynab-age-of-money
 
