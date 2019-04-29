@@ -187,7 +187,7 @@ func main() {
 	for i := range buckets {
 		cumEarned += buckets[i].Amount
 		if *debug {
-			fmt.Println("income:", time.Time(buckets[i].Date).String(), amt(cumEarned), amt(buckets[i].Amount), buckets[i].AccountName, buckets[i].PayeeName)
+			fmt.Println("income:", buckets[i].Date.String(), amt(cumEarned), amt(buckets[i].Amount), buckets[i].AccountName, buckets[i].PayeeName)
 		}
 	}
 	spending := make([]*ynab.Transaction, 0)
@@ -201,9 +201,6 @@ func main() {
 	cumSpent := int64(0)
 	for i := range spending {
 		cumSpent += spending[i].Amount
-		if *debug {
-			fmt.Println("spend", time.Time(spending[i].Date).String(), amt(cumSpent), amt(spending[i].Amount), spending[i].AccountName, spending[i].PayeeName)
-		}
 	}
 	if *debug {
 		fmt.Println("budget difference", amt(cumEarned+cumSpent))
