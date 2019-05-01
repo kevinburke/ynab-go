@@ -54,10 +54,15 @@ func isOutflow(accountMap map[string]*ynab.Account, tx *ynab.Transaction) bool {
 	if !ok {
 		panic("unknown account: " + txnAccount.ID + " " + txnAccount.Name)
 	}
+	// fmt.Printf("tx: %#v\n", tx)
 	if txnAccount.OnBudget == false {
 		return false
 	}
 	if txnAccount.Type != "cash" && txnAccount.Type != "savings" && txnAccount.Type != "checking" {
+		if tx.Amount >= 0 {
+			tx.Amount = -1 * tx.Amount
+			return true
+		}
 		return false
 	}
 	if tx.Amount >= 0 {
@@ -271,7 +276,7 @@ func main() {
 		if !isOutflow(accountMap, txnIsh) {
 			continue
 		}
-		amount := -1 * scheduledTxns[i].Amount
+		amount := -1 * txnIsh.Amount
 		if amount == 0 {
 			continue
 		}
@@ -295,7 +300,7 @@ func main() {
 		}
 		if currentBucketIdx >= len(buckets) {
 			fmt.Printf("money not earned yet. spend on: %s %10s %s %s\n",
-				scheduledTxns[i].DateNext.String(), "$"+amt(-1*scheduledTxns[i].Amount),
+				scheduledTxns[i].DateNext.String(), "$"+amt(-1*txnIsh.Amount),
 				scheduledTxns[i].AccountName, scheduledTxns[i].PayeeName)
 			break
 		}
@@ -303,7 +308,7 @@ func main() {
 		ageOfMoney := int(math.Round(float64(ageHours) / 24))
 		fmt.Printf("%3d earned: %s spend on: %s %10s %s %s\n",
 			ageOfMoney, buckets[currentBucketIdx].Date.String(),
-			scheduledTxns[i].DateNext.String(), "$"+amt(-1*scheduledTxns[i].Amount),
+			scheduledTxns[i].DateNext.String(), "$"+amt(-1*txnIsh.Amount),
 			scheduledTxns[i].AccountName, scheduledTxns[i].PayeeName)
 	}
 }
