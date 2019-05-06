@@ -245,7 +245,7 @@ func main() {
 	threshold := int64(0)
 	for i := currentBucketIdx; i-currentBucketIdx < 10 && i < len(buckets); i++ {
 		ageHours := time.Since(time.Time(buckets[i].Date)).Hours()
-		ageDays := int(math.Round(float64(ageHours) / 24))
+		ageDays := int(math.Round(float64(ageHours)/24)) - 1
 		if i == currentBucketIdx {
 			threshold += buckets[i].Amount - bucketSpend
 		} else {
