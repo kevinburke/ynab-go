@@ -99,6 +99,11 @@ type Account struct {
 	StartingBalance int64 `json:"starting_balance"`
 	Deleted         bool
 }
+
+func (a Account) CashBacked() bool {
+	return a.Type == "cash" || a.Type == "savings" || a.Type == "checking"
+}
+
 type AccountListResponse struct {
 	Data AccountListWrapper `json:"data"`
 }

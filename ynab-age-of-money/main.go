@@ -54,31 +54,44 @@ func isOutflow(accountMap map[string]*ynab.Account, tx *ynab.Transaction) bool {
 	if !ok {
 		panic("unknown account: " + txnAccount.ID + " " + txnAccount.Name)
 	}
-	// fmt.Printf("tx: %#v\n", tx)
 	if txnAccount.OnBudget == false {
 		return false
 	}
-	if txnAccount.Type != "cash" && txnAccount.Type != "savings" && txnAccount.Type != "checking" {
-		if tx.Amount >= 0 {
-			tx.Amount = -1 * tx.Amount
-			return true
-		}
-		return false
-	}
-	if tx.Amount >= 0 {
-		// counted as income, don't double count
-		return false
-	}
+	var transferAccount *ynab.Account
 	if tx.TransferAccountID.Valid {
-		transferAccount, ok := accountMap[tx.TransferAccountID.String]
+		var ok bool
+		transferAccount, ok = accountMap[tx.TransferAccountID.String]
 		if !ok {
 			panic("could not find id: " + tx.TransferAccountID.String)
 		}
-		if transferAccount.Type == "cash" || transferAccount.Type == "savings" || transferAccount.Type == "checking" {
-			return false
-		}
 	}
-	return true
+	if txnAccount.CashBacked() {
+		if transferAccount == nil || transferAccount.OnBudget == false {
+			// cash direct spending, or transfer to off budget account
+			return tx.Amount < 0
+		}
+		// cash <> cash transfer is just moving money around, not an outflow
+		// the bank account side of a credit card transfer is ignored, we count
+		// the credit card transfer inflow istead.
+		return false
+	}
+	// transaction account is not cash backed:
+	if transferAccount == nil {
+		// credit card spending or similar outflow.
+		return false
+	}
+	if !transferAccount.CashBacked() {
+		// not cash backed and transfer account is not cash backed, e.g.
+		// transfer from mortgage account to escrow account.
+		return false
+	}
+	if tx.Amount >= 0 {
+		// transfer from cash backed account to credit account, reverse the
+		// amount and count it as an outflow.
+		tx.Amount = -1 * tx.Amount
+		return true
+	}
+	return false
 }
 
 func main() {
@@ -167,7 +180,7 @@ func main() {
 		if txnAccount.OnBudget == false {
 			continue
 		}
-		if txnAccount.Type != "cash" && txnAccount.Type != "savings" && txnAccount.Type != "checking" {
+		if !txnAccount.CashBacked() {
 			continue
 		}
 		if tx.Amount <= 0 {
