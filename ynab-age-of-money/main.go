@@ -49,7 +49,7 @@ func getScheduledTransactions(client *ynab.Client, budgetID string) ([]*ynab.Sch
 	return transactionResp.Data.ScheduledTransactions, nil
 }
 
-func isOutflow(accountMap map[string]*ynab.Account, tx *ynab.Transaction) bool {
+func isOutflow(accountMap map[string]*ynab.Account, tx *ynab.Transaction, scheduled bool) bool {
 	txnAccount, ok := accountMap[tx.AccountID]
 	if !ok {
 		panic("unknown account: " + txnAccount.ID + " " + txnAccount.Name)
@@ -66,13 +66,17 @@ func isOutflow(accountMap map[string]*ynab.Account, tx *ynab.Transaction) bool {
 		}
 	}
 	if txnAccount.CashBacked() {
-		if transferAccount == nil || transferAccount.OnBudget == false {
+		if transferAccount == nil || transferAccount.OnBudget == false ||
+			// For scheduled transfers we only see one side of the transaction
+			// - cash => credit transfers in the past get caught below but we need
+			// to catch scheduled ones here also.
+			(scheduled && !transferAccount.CashBacked()) {
 			// cash direct spending, or transfer to off budget account
 			return tx.Amount < 0
 		}
 		// cash <> cash transfer is just moving money around, not an outflow
 		// the bank account side of a credit card transfer is ignored, we count
-		// the credit card transfer inflow istead.
+		// the credit card transfer inflow instead.
 		return false
 	}
 	// transaction account is not cash backed:
@@ -211,7 +215,7 @@ func main() {
 	spending := make([]*ynab.Transaction, 0)
 	for i := range txns {
 		tx := txns[i]
-		if isOutflow(accountMap, tx) {
+		if isOutflow(accountMap, tx, false) {
 			spending = append(spending, tx)
 		}
 
@@ -286,7 +290,7 @@ func main() {
 			TransferAccountID: scheduledTxns[i].TransferAccountID,
 		}
 
-		if !isOutflow(accountMap, txnIsh) {
+		if !isOutflow(accountMap, txnIsh, true) {
 			continue
 		}
 		amount := -1 * txnIsh.Amount
