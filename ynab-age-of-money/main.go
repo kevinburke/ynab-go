@@ -263,9 +263,10 @@ func main() {
 			spending[i].AccountName, spending[i].PayeeName)
 	}
 	fmt.Println("")
-	fmt.Println("upcoming spending thresholds (and age if you spent today):")
+	fmt.Println("Upcoming spending thresholds (and age if you spent today):")
+	fmt.Println("==========================================================")
 	threshold := int64(0)
-	for i := currentBucketIdx; i-currentBucketIdx < 10 && i < len(buckets); i++ {
+	for i := currentBucketIdx; (i-currentBucketIdx < 25 && threshold <= 20000*1000) && i < len(buckets); i++ {
 		ageHours := time.Since(time.Time(buckets[i].Date)).Hours()
 		ageDays := int(math.Round(float64(ageHours)/24)) - 1
 		if i == currentBucketIdx {
