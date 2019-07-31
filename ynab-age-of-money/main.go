@@ -12,6 +12,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kevinburke/ynab-go"
@@ -257,10 +258,10 @@ func main() {
 		}
 		ageHours := time.Time(spending[i].Date).Sub(time.Time(buckets[currentBucketIdx].Date)).Hours()
 		ageOfMoney := int(math.Round(float64(ageHours) / 24))
-		fmt.Printf("%3d earned: %s spent: %s %10s %s %s\n",
+		fmt.Printf("%3d Earned: %s Spent: %s %10s %s %s\n",
 			ageOfMoney, buckets[currentBucketIdx].Date.String(),
 			spending[i].Date.String(), "$"+amt(-1*spending[i].Amount),
-			spending[i].AccountName, spending[i].PayeeName)
+			spending[i].AccountName, clean(spending[i].PayeeName))
 	}
 	fmt.Println("")
 	fmt.Println("Upcoming spending thresholds (and age if you spent today):")
@@ -274,7 +275,7 @@ func main() {
 		} else {
 			threshold += buckets[i].Amount
 		}
-		fmt.Printf("%3d %s %10s %s %s\n", ageDays, buckets[i].Date.String(), "$"+amt(threshold), buckets[i].AccountName, buckets[i].PayeeName)
+		fmt.Printf("%3d %s %10s %s %s\n", ageDays, buckets[i].Date.String(), "$"+amt(threshold), buckets[i].AccountName, clean(buckets[i].PayeeName))
 	}
 	if len(scheduledTxns) == 0 {
 		return
@@ -317,18 +318,23 @@ func main() {
 			}
 		}
 		if currentBucketIdx >= len(buckets) {
-			fmt.Printf("money not earned yet. spend on: %s %10s %s %s\n",
+			//          113 Earned: 2019-07-25 Spend on: 2019-11-15
+			fmt.Printf("N/A Not earned yet.    Spend on: %s %10s %s %s\n",
 				scheduledTxns[i].DateNext.String(), "$"+amt(-1*txnIsh.Amount),
-				scheduledTxns[i].AccountName, scheduledTxns[i].PayeeName)
+				scheduledTxns[i].AccountName, clean(scheduledTxns[i].PayeeName))
 			break
 		}
 		ageHours := time.Time(scheduledTxns[i].DateNext).Sub(time.Time(buckets[currentBucketIdx].Date)).Hours()
 		ageOfMoney := int(math.Round(float64(ageHours) / 24))
-		fmt.Printf("%3d earned: %s spend on: %s %10s %s %s\n",
+		fmt.Printf("%3d Earned: %s Spend on: %s %10s %s %s\n",
 			ageOfMoney, buckets[currentBucketIdx].Date.String(),
 			scheduledTxns[i].DateNext.String(), "$"+amt(-1*txnIsh.Amount),
-			scheduledTxns[i].AccountName, scheduledTxns[i].PayeeName)
+			scheduledTxns[i].AccountName, clean(scheduledTxns[i].PayeeName))
 	}
+}
+
+func clean(payee string) string {
+	return strings.Replace(payee, "Transfer :", "Transfer:", -1)
 }
 
 func amt(amount int64) string {
