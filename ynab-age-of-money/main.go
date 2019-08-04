@@ -281,7 +281,8 @@ func main() {
 		return
 	}
 	fmt.Println("")
-	fmt.Println("projected age of scheduled transactions:")
+	fmt.Println("Projected age of scheduled transactions:")
+	fmt.Println("========================================")
 	for i := range scheduledTxns {
 		// TODO the duplication is not great here.
 
