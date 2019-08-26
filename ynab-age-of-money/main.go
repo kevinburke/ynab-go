@@ -103,6 +103,7 @@ func main() {
 	debug := flag.Bool("debug", false, "Enable debug")
 	file := flag.String("file", "", "Filename to read txns from")
 	budgetName := flag.String("budget-name", "", "Name of the budget to compute AOM for")
+	includeScheduledIncome := flag.Bool("include-scheduled-income", false, "Include scheduled income")
 	flag.Parse()
 	token, ok := os.LookupEnv("YNAB_TOKEN")
 	if !ok {
@@ -180,7 +181,7 @@ func main() {
 		tx := txns[i]
 		txnAccount, ok := accountMap[tx.AccountID]
 		if !ok {
-			panic("unknown account: " + txnAccount.ID + " " + txnAccount.Name)
+			panic("unknown account: " + tx.AccountID)
 		}
 		if txnAccount.OnBudget == false {
 			continue
@@ -291,9 +292,40 @@ func main() {
 			AccountID:         scheduledTxns[i].AccountID,
 			Amount:            scheduledTxns[i].Amount,
 			TransferAccountID: scheduledTxns[i].TransferAccountID,
+			Date:              scheduledTxns[i].DateNext,
+			PayeeName:         scheduledTxns[i].PayeeName,
+			Memo:              scheduledTxns[i].Memo,
 		}
 
 		if !isOutflow(accountMap, txnIsh, true) {
+			if *includeScheduledIncome == false {
+				continue
+			}
+			txnAccount, ok := accountMap[txnIsh.AccountID]
+			if !ok {
+				panic("unknown account: " + txnIsh.AccountID)
+			}
+			if txnIsh.TransferAccountID.Valid {
+				transferAccount, ok := accountMap[txnIsh.TransferAccountID.String]
+				if !ok {
+					panic("could not find transfer acct id: " + txnIsh.TransferAccountID.String)
+				}
+				if !txnAccount.CashBacked() && txnIsh.Amount < 0 && transferAccount.OnBudget {
+					// transfer from off budget to on budget, this is valid
+					txnIsh.Amount = txnIsh.Amount * -1
+					buckets = append(buckets, txnIsh)
+					continue
+				}
+				// transfers from off budget accounts are income, on budget, they
+				// are just moving money around
+				if txnAccount.CashBacked() && transferAccount.OnBudget == true {
+					continue
+				}
+			}
+			if !txnAccount.CashBacked() {
+				continue
+			}
+			buckets = append(buckets, txnIsh)
 			continue
 		}
 		amount := -1 * txnIsh.Amount
