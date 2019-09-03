@@ -36,7 +36,7 @@ type ScheduledTransactionListWrapper struct {
 type Date time.Time
 
 func (t *Date) UnmarshalJSON(b []byte) error {
-	t2, err := time.Parse(`"2006-01-02"`, string(b))
+	t2, err := time.ParseInLocation(`"2006-01-02"`, string(b), time.Local)
 	if err != nil {
 		return err
 	}

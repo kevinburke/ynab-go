@@ -1,3 +1,11 @@
+// The ynab-largest-inputs-outputs function finds the largest inputs and outputs
+// to your Net Worth, optionally filtered by a month argument. Any income or
+// outflows that come into either your budget accounts or your tracking accounts
+// will appear here. One exception is that credit card spending is accounted at
+// the time of payment, not at the time the money is spent.
+//
+// Pass the --month flag to filter by a given month. The flag accepts arguments
+// in the form of 'Jan 2006', e.g. --month='Aug 2019'.
 package main
 
 import (
@@ -7,6 +15,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"time"
 
@@ -54,10 +63,9 @@ func isBlackBox(accountMap map[string]*ynab.Account, tx *ynab.Transaction) bool 
 		if transferAccount == nil {
 			return true
 		}
-		if transferAccount.Type == "creditCard" || transferAccount.Type == "otherLiability" {
+		if transferAccount.Type == "creditCard" && tx.Amount < 0 {
 			return true
 		}
-		//fmt.Printf("transfer tx: %s %s %s %s\n", time.Time(tx.Date).Format("2006-01-02"), tx.AccountName, tx.PayeeName, amt(tx.Amount))
 		//fmt.Println(transferAccount.Type)
 		return false
 	}
@@ -73,6 +81,7 @@ func isBlackBox(accountMap map[string]*ynab.Account, tx *ynab.Transaction) bool 
 
 func main() {
 	budgetName := flag.String("budget-name", "", "Name of the budget to compute inputs and outputs for")
+	monthStr := flag.String("month", "", "Month to print inputs and outputs for")
 	flag.Parse()
 	token, ok := os.LookupEnv("YNAB_TOKEN")
 	if !ok {
@@ -116,17 +125,80 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	var month, endOfMonth time.Time
+	if *monthStr != "" {
+		var err error
+		month, err = time.Parse("Jan 2006", *monthStr)
+		if err != nil {
+			month, err = time.Parse("January 2006", *monthStr)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		if month.IsZero() {
+			log.Fatalf("could not parse month as month: %v", *monthStr)
+		}
+		endOfMonth = time.Date(month.Year(), month.Month()+1, month.Day(), 0, 0, 0, 0, time.Local)
+	}
 
+	inflows := make([]*ynab.Transaction, 0)
+	outflows := make([]*ynab.Transaction, 0)
+	inflowSum := int64(0)
+	outflowSum := int64(0)
+	runningTotal := int64(0)
 	for i := range txns {
 		tx := txns[i]
-		txnAccount, ok := accountMap[tx.AccountID]
-		if !ok {
-			panic("unknown account: " + tx.AccountID)
+		if tx.Amount == 0 {
+			continue
+		}
+		if !month.IsZero() {
+			tt := time.Time(tx.Date)
+			if tt.Before(month) || !tt.Before(endOfMonth) {
+				continue
+			}
 		}
 		if isBlackBox(accountMap, tx) {
-			fmt.Printf("outflow tx: %s %s %s %s\n", time.Time(tx.Date).Format("2006-01-02"), tx.AccountName, tx.PayeeName, amt(tx.Amount))
+			runningTotal += tx.Amount
+			if tx.Amount < 0 {
+				outflows = append(outflows, tx)
+				outflowSum += tx.Amount
+			}
+			if tx.Amount > 0 {
+				inflows = append(inflows, tx)
+				inflowSum += tx.Amount
+			}
 		}
-		_ = txnAccount
+	}
+	sort.Slice(inflows, func(i, j int) bool {
+		return inflows[i].Amount > inflows[j].Amount
+	})
+	sort.Slice(outflows, func(i, j int) bool {
+		return outflows[i].Amount < outflows[j].Amount
+	})
+	fmt.Println("Month Balance: $" + amt(runningTotal))
+	fmt.Printf("\nInflows: $%s\n============================\n", amt(inflowSum))
+	count := 0
+	runningInflow := int64(0)
+	for i := range inflows {
+		tx := inflows[i]
+		runningInflow += tx.Amount
+		fmt.Printf("%s %10s %10s %s %s\n", tx.Date.String(), "$"+amt(tx.Amount), "$"+amt(runningInflow), tx.AccountName, tx.PayeeName)
+		count++
+		if count > 10 && tx.Amount < 100*1000 {
+			break
+		}
+	}
+	count = 0
+	runningOutflow := int64(0)
+	fmt.Printf("\nOutflows: $%s\n============================\n", amt(-1*outflowSum))
+	for i := range outflows {
+		tx := outflows[i]
+		runningOutflow += tx.Amount
+		fmt.Printf("%s %10s %10s %s %s\n", tx.Date.String(), "$"+amt(-1*tx.Amount), "$"+amt(-1*runningOutflow), tx.AccountName, tx.PayeeName)
+		count++
+		if count > 10 && (-1*tx.Amount) < 100*1000 {
+			break
+		}
 	}
 }
 
