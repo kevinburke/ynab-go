@@ -62,7 +62,7 @@ You will need to specify --budget-name if you have more than one budget.
 all of the accounts you have. `--file` is useful if you are making a lot of
 requests - save the JSON transaction data to a file and load it from there.
 
-### Errata
+#### Errata
 
 YNAB uses a weighted average to calculate age of money for a single transaction
 if it spans multiple buckets. I choose the date of the bucket the last penny was
@@ -70,6 +70,17 @@ taken out of, so the numbers may be slightly lower here than in your dashboard.
 
 YNAB averages the last ten transactions to get the Age of Money. I print
 accurate results for each transaction in your account.
+
+### Largest Inputs and Outputs
+
+The `ynab-largest-inputs-outputs` command finds the largest inputs and outputs
+to your Net Worth, optionally filtered by a month argument. Any income or
+outflows that come into either your budget accounts or your tracking accounts
+will appear here. One exception is that credit card spending is accounted at the
+time of payment, not at the time the money is spent.
+
+Pass the --month flag to filter by a given month. The flag accepts arguments in
+the form of 'Jan 2006', e.g. --month='Aug 2019'.
 
 ### Disclaimer
 
