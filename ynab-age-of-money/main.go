@@ -13,9 +13,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kevinburke/ynab-go"
+	"github.com/mattn/go-isatty"
 )
 
 func getAccounts(client *ynab.Client, budgetID string) ([]*ynab.Account, error) {
@@ -97,6 +99,13 @@ func isOutflow(accountMap map[string]*ynab.Account, tx *ynab.Transaction, schedu
 		return true
 	}
 	return false
+}
+
+var isTTY bool
+var isTTYOnce sync.Once
+
+func isTerminal() {
+	isTTY = isatty.IsTerminal(os.Stdout.Fd())
 }
 
 func main() {
@@ -259,8 +268,15 @@ func main() {
 		}
 		ageHours := time.Time(spending[i].Date).Sub(time.Time(buckets[currentBucketIdx].Date)).Hours()
 		ageOfMoney := int(math.Round(float64(ageHours) / 24))
-		fmt.Printf("%3d Earned: %s Spent: %s %10s %s %s\n",
-			ageOfMoney, buckets[currentBucketIdx].Date.String(),
+		isTTYOnce.Do(isTerminal)
+		var preamble string
+		if isTTY && len(spending)-i <= 10 {
+			preamble = fmt.Sprintf("\033[38;05;160m%3d\033[0m", ageOfMoney)
+		} else {
+			preamble = fmt.Sprintf("%3d", ageOfMoney)
+		}
+		fmt.Printf("%s Earned: %s Spent: %s %10s %s %s\n",
+			preamble, buckets[currentBucketIdx].Date.String(),
 			spending[i].Date.String(), "$"+amt(-1*spending[i].Amount),
 			spending[i].AccountName, clean(spending[i].PayeeName))
 	}
