@@ -157,7 +157,12 @@ func main() {
 		log.Fatal(err)
 	}
 	sort.Slice(scheduledTxns, func(i, j int) bool {
-		return time.Time(scheduledTxns[i].DateNext).Before(time.Time(scheduledTxns[j].DateNext))
+		it := time.Time(scheduledTxns[i].DateNext)
+		jt := time.Time(scheduledTxns[j].DateNext)
+		if it.Equal(jt) {
+			return scheduledTxns[i].Amount > scheduledTxns[j].Amount
+		}
+		return it.Before(jt)
 	})
 	var txns []*ynab.Transaction
 
