@@ -229,8 +229,15 @@ func main() {
 		if isOutflow(accountMap, tx, false) {
 			spending = append(spending, tx)
 		}
-
 	}
+	sort.Slice(spending, func(i, j int) bool {
+		it := time.Time(spending[i].Date)
+		jt := time.Time(spending[j].Date)
+		if it.Equal(jt) {
+			return spending[i].Amount > spending[j].Amount
+		}
+		return it.Before(jt)
+	})
 	cumSpent := int64(0)
 	for i := range spending {
 		cumSpent += spending[i].Amount
