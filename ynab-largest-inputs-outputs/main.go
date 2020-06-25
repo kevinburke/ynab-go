@@ -17,6 +17,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kevinburke/ynab-go"
@@ -176,13 +177,20 @@ func main() {
 		return outflows[i].Amount < outflows[j].Amount
 	})
 	fmt.Println("Month Balance: $" + amt(runningTotal))
-	fmt.Printf("\nInflows: $%s\n============================\n", amt(inflowSum))
+	fmt.Printf("\nInflows: $%s\n================================\n", amt(inflowSum))
 	count := 0
 	runningInflow := int64(0)
 	for i := range inflows {
 		tx := inflows[i]
 		runningInflow += tx.Amount
-		fmt.Printf("%s %10s %10s %s %s\n", tx.Date.String(), "$"+amt(tx.Amount), "$"+amt(runningInflow), tx.AccountName, tx.PayeeName)
+		payeeFmt := " %s"
+		payee := strings.Replace(tx.PayeeName, " : ", ": ", -1)
+		var memo string
+		if tx.Memo != "" {
+			memo = fmt.Sprintf("%q", tx.Memo)
+			payeeFmt = "%q"
+		}
+		fmt.Printf("%s %10s %10s %-22s "+payeeFmt+" %s\n", tx.Date.String(), "$"+amt(tx.Amount), "$"+amt(runningInflow), tx.AccountName, payee, memo)
 		count++
 		if count > 10 && tx.Amount < 100*1000 {
 			break
@@ -190,11 +198,18 @@ func main() {
 	}
 	count = 0
 	runningOutflow := int64(0)
-	fmt.Printf("\nOutflows: $%s\n============================\n", amt(-1*outflowSum))
+	fmt.Printf("\nOutflows: $%s\n================================\n", amt(-1*outflowSum))
 	for i := range outflows {
 		tx := outflows[i]
 		runningOutflow += tx.Amount
-		fmt.Printf("%s %10s %10s %s %s\n", tx.Date.String(), "$"+amt(-1*tx.Amount), "$"+amt(-1*runningOutflow), tx.AccountName, tx.PayeeName)
+		payee := strings.Replace(tx.PayeeName, " : ", ": ", -1)
+		var memo string
+		payeeFmt := " %s"
+		if tx.Memo != "" {
+			memo = fmt.Sprintf("%q", tx.Memo)
+			payeeFmt = "%q"
+		}
+		fmt.Printf("%s %10s %10s %-22s "+payeeFmt+" %s\n", tx.Date.String(), "$"+amt(-1*tx.Amount), "$"+amt(-1*runningOutflow), tx.AccountName, payee, memo)
 		count++
 		if count > 10 && (-1*tx.Amount) < 100*1000 {
 			break
