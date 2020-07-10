@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math"
@@ -16,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/juju/ansiterm"
 	"github.com/kevinburke/ynab-go"
 	"github.com/mattn/go-isatty"
 )
@@ -258,6 +261,8 @@ func main() {
 	currentBucketIdx := 0
 	// Amount of money that's been spent from the current bucket.
 	bucketSpend := int64(0)
+	buf := new(bytes.Buffer)
+	tw := ansiterm.NewTabWriter(buf, 0, 0, 1, ' ', 0)
 	for i := range spending {
 		amount := -1 * spending[i].Amount
 		if amount == 0 {
@@ -287,12 +292,15 @@ func main() {
 		} else {
 			preamble = fmt.Sprintf("%3d", ageOfMoney)
 		}
-		fmt.Printf("%s Earned: %s Spent: %s %10s %s %s\n",
+		io.WriteString(tw, fmt.Sprintf("%s\tEarned: %s\tSpent: %s\t%s\t%s\t%s\n",
 			preamble, buckets[currentBucketIdx].Date.String(),
 			spending[i].Date.String(), "$"+amt(-1*spending[i].Amount),
-			spending[i].AccountName, clean(spending[i].PayeeName))
+			spending[i].AccountName, clean(spending[i].PayeeName)))
 	}
-	fmt.Println("")
+	io.WriteString(tw, "\n")
+	tw.Flush()
+	io.Copy(os.Stdout, buf)
+	buf.Reset()
 	fmt.Println("Upcoming spending thresholds (and age if you spent today):")
 	fmt.Println("==========================================================")
 	threshold := int64(0)
@@ -304,14 +312,17 @@ func main() {
 		} else {
 			threshold += buckets[i].Amount
 		}
-		fmt.Printf("%3d %s %10s %s %s\n", ageDays, buckets[i].Date.String(), "$"+amt(threshold), buckets[i].AccountName, clean(buckets[i].PayeeName))
+		io.WriteString(tw, fmt.Sprintf("%d\t%s\t%s\t%s\t%s\n", ageDays, buckets[i].Date.String(), "$"+amt(threshold), buckets[i].AccountName, clean(buckets[i].PayeeName)))
 	}
+	tw.Flush()
+	io.Copy(os.Stdout, buf)
 	if len(scheduledTxns) == 0 {
 		return
 	}
 	fmt.Println("")
 	fmt.Println("Projected age of scheduled transactions:")
 	fmt.Println("========================================")
+	buf.Reset()
 	for i := range scheduledTxns {
 		// TODO the duplication is not great here.
 
@@ -380,18 +391,20 @@ func main() {
 		}
 		if currentBucketIdx >= len(buckets) {
 			//          113 Earned: 2019-07-25 Spend on: 2019-11-15
-			fmt.Printf("N/A Not earned yet.    Spend on: %s %10s %s %s\n",
+			io.WriteString(tw, fmt.Sprintf("N/A Not earned yet.\tSpend on: %s\t%s\t%s\t%s\n",
 				scheduledTxns[i].DateNext.String(), "$"+amt(-1*txnIsh.Amount),
-				scheduledTxns[i].AccountName, clean(scheduledTxns[i].PayeeName))
+				scheduledTxns[i].AccountName, clean(scheduledTxns[i].PayeeName)))
 			break
 		}
 		ageHours := time.Time(scheduledTxns[i].DateNext).Sub(time.Time(buckets[currentBucketIdx].Date)).Hours()
 		ageOfMoney := int(math.Round(float64(ageHours) / 24))
-		fmt.Printf("%3d Earned: %s Spend on: %s %10s %s %s\n",
+		io.WriteString(tw, fmt.Sprintf("%d\tEarned: %s\tSpend on: %s\t%s\t%s\t%s\n",
 			ageOfMoney, buckets[currentBucketIdx].Date.String(),
 			scheduledTxns[i].DateNext.String(), "$"+amt(-1*txnIsh.Amount),
-			scheduledTxns[i].AccountName, clean(scheduledTxns[i].PayeeName))
+			scheduledTxns[i].AccountName, clean(scheduledTxns[i].PayeeName)))
 	}
+	tw.Flush()
+	io.Copy(os.Stdout, buf)
 }
 
 func clean(payee string) string {
