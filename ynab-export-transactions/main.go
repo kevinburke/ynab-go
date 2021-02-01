@@ -1,3 +1,10 @@
+// The ynab-export-transactions command retrieves transactions and prints them
+// to stdout in CSV format. Use the --start or --category arguments to filter
+// the list of transactions returned by the program. Use --budget <budget_name>
+// to specify a budget.
+//
+// Set YNAB_TOKEN in your environment with your API token to configure the
+// client.
 package main
 
 import (
