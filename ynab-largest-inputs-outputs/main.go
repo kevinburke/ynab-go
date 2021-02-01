@@ -121,8 +121,7 @@ func main() {
 	for _, account := range accounts {
 		accountMap[account.ID] = account
 	}
-	var txns []*ynab.Transaction
-	txns, err = getTransactions(client, thisBudget.ID)
+	txns, err := getTransactions(client, thisBudget.ID)
 	if err != nil {
 		log.Fatal(err)
 	}

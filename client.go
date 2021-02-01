@@ -14,11 +14,38 @@ type Client struct {
 
 	Accounts     *AccountService
 	Budgets      *BudgetService
+	Categories   *CategoryService
 	Transactions *TransactionService
 }
 
 type TransactionListResponse struct {
 	Data TransactionListWrapper `json:"data"`
+}
+
+type CategoryListResponse struct {
+	Data CategoryListWrapper `json:"data"`
+}
+
+type CategoryListWrapper struct {
+	CategoryGroups []*CategoryGroup `json:"category_groups"`
+}
+
+type CategoryGroup struct {
+	ID         string
+	Name       string
+	Hidden     bool
+	Deleted    bool
+	Categories []*Category
+}
+
+type Category struct {
+	ID              string
+	Name            string
+	CategoryGroupID string `json:"category_group_id"`
+	Note            string
+	Hidden          bool
+	Budgeted        int64
+	Activity        int64
 }
 
 type TransactionListWrapper struct {
@@ -71,6 +98,7 @@ type Transaction struct {
 	AccountName           string `json:"account_name"`
 	Amount                int64
 	Approved              bool
+	CategoryID            types.NullString `json:"category_id"`
 	CategoryName          types.NullString `json:"category_name"`
 	Cleared               string
 	Date                  Date
@@ -177,10 +205,27 @@ func (b *BudgetService) GetScheduledTransactions(ctx context.Context, budgetID s
 	return transactionResp, nil
 }
 
+func (b *BudgetService) GetCategories(ctx context.Context, budgetID string, data url.Values) (*CategoryListResponse, error) {
+	req, err := b.client.NewRequest("GET", "/budgets/"+budgetID+"/categories?"+data.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	categoryResp := new(CategoryListResponse)
+	if err := b.client.Do(req, categoryResp); err != nil {
+		return nil, err
+	}
+	return categoryResp, nil
+}
+
 type BudgetService struct {
 	client *Client
 }
 type TransactionService struct {
+	client *Client
+}
+
+type CategoryService struct {
 	client *Client
 }
 
@@ -194,6 +239,9 @@ func NewClient(token string) *Client {
 		client: c,
 	}
 	c.Transactions = &TransactionService{
+		client: c,
+	}
+	c.Categories = &CategoryService{
 		client: c,
 	}
 	return c
