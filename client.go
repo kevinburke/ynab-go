@@ -75,6 +75,10 @@ func (t Date) String() string {
 	return time.Time(t).Format("2006-01-02")
 }
 
+func (t Date) GoString() string {
+	return time.Time(t).GoString()
+}
+
 type ScheduledTransaction struct {
 	AccountID         string `json:"account_id"`
 	AccountName       string `json:"account_name"`
