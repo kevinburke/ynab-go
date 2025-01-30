@@ -16,11 +16,12 @@ import (
 	"net/url"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/kevinburke/ynab-go"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 func getBudgets(client *ynab.Client) ([]*ynab.Budget, error) {
@@ -82,7 +83,9 @@ func isBlackBox(accountMap map[string]*ynab.Account, tx *ynab.Transaction) bool 
 
 func main() {
 	budgetName := flag.String("budget-name", "", "Name of the budget to compute inputs and outputs for")
+	exclude := flag.String("exclude", "", "Comma separated list of accounts to exclude")
 	monthStr := flag.String("month", "", "Month to print inputs and outputs for")
+	yearStr := flag.String("year", "", "Year to print inputs and outputs for")
 	flag.Parse()
 	token, ok := os.LookupEnv("YNAB_TOKEN")
 	if !ok {
@@ -126,6 +129,9 @@ func main() {
 		log.Fatal(err)
 	}
 	var month, endOfMonth time.Time
+	if *monthStr != "" && *yearStr != "" {
+		log.Fatalf("can't specify both --month and --year")
+	}
 	if *monthStr != "" {
 		var err error
 		month, err = time.Parse("Jan 2006", *monthStr)
@@ -139,6 +145,16 @@ func main() {
 			log.Fatalf("could not parse month as month: %v", *monthStr)
 		}
 		endOfMonth = time.Date(month.Year(), month.Month()+1, month.Day(), 0, 0, 0, 0, time.Local)
+	} else if *yearStr != "" {
+		var err error
+		month, err = time.Parse("2006", *yearStr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if month.IsZero() {
+			log.Fatalf("could not parse year: %v", *yearStr)
+		}
+		endOfMonth = time.Date(month.Year()+1, month.Month(), month.Day(), 0, 0, 0, 0, time.Local)
 	}
 
 	inflows := make([]*ynab.Transaction, 0)
@@ -146,8 +162,16 @@ func main() {
 	inflowSum := int64(0)
 	outflowSum := int64(0)
 	runningTotal := int64(0)
+	excludes := make(map[string]struct{})
+	parts := strings.Split(*exclude, ",")
+	for _, part := range parts {
+		excludes[part] = struct{}{}
+	}
 	for i := range txns {
 		tx := txns[i]
+		if _, ok := excludes[tx.AccountName]; ok {
+			continue
+		}
 		if tx.Amount == 0 {
 			continue
 		}
@@ -175,7 +199,11 @@ func main() {
 	sort.Slice(outflows, func(i, j int) bool {
 		return outflows[i].Amount < outflows[j].Amount
 	})
-	fmt.Println("Month Balance: $" + amt(runningTotal))
+	if *monthStr != "" {
+		fmt.Println("Month Balance: $" + amt(runningTotal))
+	} else if *yearStr != "" {
+		fmt.Println("Year Balance: $" + amt(runningTotal))
+	}
 	fmt.Printf("\nInflows: $%s\n================================\n", amt(inflowSum))
 	count := 0
 	runningInflow := int64(0)
@@ -216,6 +244,8 @@ func main() {
 	}
 }
 
+var p = message.NewPrinter(language.English)
+
 func amt(amount int64) string {
-	return strconv.FormatFloat(float64(amount)/1000, 'f', 2, 64)
+	return p.Sprintf("%.2f", float64(amount)/1000)
 }
