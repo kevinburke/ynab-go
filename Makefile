@@ -1,3 +1,6 @@
 test:
 	go vet ./...
 	go test -trimpath -race ./...
+
+release:
+	bump_version --tag-prefix=v minor client.go
