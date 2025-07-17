@@ -7,16 +7,13 @@ supported endpoints are the ones necessary to do the Age of Money calculation.
 
 This command will print out more information about how old your money is.
 
-Download the `ynab-age-of-money` binary, following the instructions here:
-https://go.equinox.io/github.com/kevinburke/ynab-go/ynab-age-of-money
-
 Set `YNAB_TOKEN` to your API token in your environment. You can find your token
 on the Settings page: https://app.youneedabudget.com/settings
 
 Finally, run the binary:
 
-```
-ynab-age-of-money --budget='Personal Budget'
+```bash
+go run ./cmd/ynab-age-of-money --budget='Personal Budget'
 ```
 
 The output will look something like this:
