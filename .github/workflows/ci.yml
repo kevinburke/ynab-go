@@ -1,0 +1,18 @@
+on: [push, pull_request]
+name: Test
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install Go
+      # https://github.com/actions/setup-go/tags
+      uses: actions/setup-go@v5
+      # https://github.com/actions/checkout/tags
+    - uses: actions/checkout@v4
+      with:
+         path: './src/github.com/kevinburke/ynab-go'
+    # staticcheck needs this for GOPATH
+    - name: Run tests
+      run: |
+        make test
+      working-directory: './src/github.com/kevinburke/ynab-go'
