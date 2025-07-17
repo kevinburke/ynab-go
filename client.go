@@ -2,15 +2,17 @@ package ynab
 
 import (
 	"context"
+	"io"
+	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/kevinburke/go-types"
-	"github.com/kevinburke/rest"
+	"github.com/kevinburke/rest/restclient"
 )
 
 type Client struct {
-	*rest.Client
+	*restclient.Client
 
 	Accounts     *AccountService
 	Budgets      *BudgetService
@@ -158,11 +160,10 @@ type BudgetListWrapper struct {
 }
 
 func (b *BudgetService) GetPage(ctx context.Context, data url.Values) (*BudgetListResponse, error) {
-	req, err := b.client.NewRequest("GET", "/budgets?"+data.Encode(), nil)
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
-	req = req.WithContext(ctx)
 	budgetResp := new(BudgetListResponse)
 	if err := b.client.Do(req, budgetResp); err != nil {
 		return nil, err
@@ -171,11 +172,10 @@ func (b *BudgetService) GetPage(ctx context.Context, data url.Values) (*BudgetLi
 }
 
 func (b *BudgetService) GetAccounts(ctx context.Context, budgetID string, data url.Values) (*AccountListResponse, error) {
-	req, err := b.client.NewRequest("GET", "/budgets/"+budgetID+"/accounts?"+data.Encode(), nil)
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+budgetID+"/accounts?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
-	req = req.WithContext(ctx)
 	accountResp := new(AccountListResponse)
 	if err := b.client.Do(req, accountResp); err != nil {
 		return nil, err
@@ -184,11 +184,10 @@ func (b *BudgetService) GetAccounts(ctx context.Context, budgetID string, data u
 }
 
 func (b *BudgetService) GetTransactions(ctx context.Context, budgetID string, data url.Values) (*TransactionListResponse, error) {
-	req, err := b.client.NewRequest("GET", "/budgets/"+budgetID+"/transactions?"+data.Encode(), nil)
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+budgetID+"/transactions?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
-	req = req.WithContext(ctx)
 	transactionResp := new(TransactionListResponse)
 	if err := b.client.Do(req, transactionResp); err != nil {
 		return nil, err
@@ -197,11 +196,10 @@ func (b *BudgetService) GetTransactions(ctx context.Context, budgetID string, da
 }
 
 func (b *BudgetService) GetScheduledTransactions(ctx context.Context, budgetID string, data url.Values) (*ScheduledTransactionListResponse, error) {
-	req, err := b.client.NewRequest("GET", "/budgets/"+budgetID+"/scheduled_transactions?"+data.Encode(), nil)
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+budgetID+"/scheduled_transactions?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
-	req = req.WithContext(ctx)
 	transactionResp := new(ScheduledTransactionListResponse)
 	if err := b.client.Do(req, transactionResp); err != nil {
 		return nil, err
@@ -210,11 +208,10 @@ func (b *BudgetService) GetScheduledTransactions(ctx context.Context, budgetID s
 }
 
 func (b *BudgetService) GetCategories(ctx context.Context, budgetID string, data url.Values) (*CategoryListResponse, error) {
-	req, err := b.client.NewRequest("GET", "/budgets/"+budgetID+"/categories?"+data.Encode(), nil)
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+budgetID+"/categories?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
-	req = req.WithContext(ctx)
 	categoryResp := new(CategoryListResponse)
 	if err := b.client.Do(req, categoryResp); err != nil {
 		return nil, err
@@ -233,8 +230,19 @@ type CategoryService struct {
 	client *Client
 }
 
+const Version = "0.3.0"
+
+func (c *Client) NewRequestWithContext(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
+	req, err := c.Client.NewRequestWithContext(ctx, method, path, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "ynab-go/"+Version+" "+req.Header.Get("User-Agent"))
+	return req, nil
+}
+
 func NewClient(token string) *Client {
-	client := rest.NewBearerClient(token, "https://api.youneedabudget.com/v1")
+	client := restclient.NewBearerClient(token, "https://api.youneedabudget.com/v1")
 	c := &Client{Client: client}
 	c.Accounts = &AccountService{
 		client: c,

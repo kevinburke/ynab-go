@@ -1,8 +1,12 @@
 package ynab
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -36,7 +40,6 @@ func TestResponseParsing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("txnList", txnList.Data.Transactions)
 	if l := len(txnList.Data.Transactions); l != 1 {
 		t.Errorf("expected txn list to have one item, got %d", l)
 	}
@@ -49,5 +52,38 @@ func TestResponseParsing(t *testing.T) {
 	}
 	if tx.AccountName != "Cash" {
 		t.Errorf("bad account name")
+	}
+}
+
+func TestUserAgentHeader(t *testing.T) {
+	// Create a test server that captures the User-Agent header
+	var capturedUserAgent string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedUserAgent = r.Header.Get("User-Agent")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"budgets": []}}`))
+	}))
+	defer server.Close()
+
+	// Create a client with the test server URL
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	// Make a request to trigger the User-Agent header
+	resp, err := client.Budgets.GetCategories(context.Background(), "category-id", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println("resp", resp)
+
+	// Verify the User-Agent contains "ynab-go"
+	if !strings.Contains(capturedUserAgent, "ynab-go") {
+		t.Errorf("User-Agent header does not contain 'ynab-go': %s", capturedUserAgent)
+	}
+
+	// Verify it contains the version
+	expectedVersion := "ynab-go/" + Version
+	if !strings.Contains(capturedUserAgent, expectedVersion) {
+		t.Errorf("User-Agent header does not contain expected version '%s': %s", expectedVersion, capturedUserAgent)
 	}
 }
