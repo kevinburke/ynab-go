@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"net/url"
@@ -20,7 +19,7 @@ import (
 
 	"github.com/juju/ansiterm"
 	"github.com/kevinburke/ynab-go"
-	"github.com/mattn/go-isatty"
+	"golang.org/x/term"
 )
 
 func getAccounts(client *ynab.Client, budgetID string) ([]*ynab.Account, error) {
@@ -108,7 +107,7 @@ var isTTY bool
 var isTTYOnce sync.Once
 
 func isTerminal() {
-	isTTY = isatty.IsTerminal(os.Stdout.Fd())
+	isTTY = term.IsTerminal(int(os.Stdout.Fd()))
 }
 
 func main() {
@@ -170,7 +169,7 @@ func main() {
 	var txns []*ynab.Transaction
 
 	if *file != "" {
-		data, err := ioutil.ReadFile(*file)
+		data, err := os.ReadFile(*file)
 		switch {
 		case os.IsNotExist(err):
 			txns, err = getTransactions(client, thisBudget.ID)
