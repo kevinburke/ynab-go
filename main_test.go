@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 var resp = []byte(`{"data": {
@@ -85,5 +86,34 @@ func TestUserAgentHeader(t *testing.T) {
 	expectedVersion := "ynab-go/" + Version
 	if !strings.Contains(capturedUserAgent, expectedVersion) {
 		t.Errorf("User-Agent header does not contain expected version '%s': %s", expectedVersion, capturedUserAgent)
+	}
+}
+
+func TestDateMarshalJSON(t *testing.T) {
+	date := Date(time.Date(2023, 5, 15, 0, 0, 0, 0, time.UTC))
+
+	data, err := json.Marshal(date)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := `"2023-05-15"`
+	if string(data) != expected {
+		t.Errorf("expected %s, got %s", expected, string(data))
+	}
+}
+
+func TestDateUnmarshalJSON(t *testing.T) {
+	jsonData := `"2023-05-15"`
+	var date Date
+
+	err := json.Unmarshal([]byte(jsonData), &date)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := time.Date(2023, 5, 15, 0, 0, 0, 0, time.Local)
+	if time.Time(date) != expected {
+		t.Errorf("expected %v, got %v", expected, time.Time(date))
 	}
 }

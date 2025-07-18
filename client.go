@@ -73,6 +73,10 @@ func (t *Date) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (t Date) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + time.Time(t).Format("2006-01-02") + `"`), nil
+}
+
 func (t Date) String() string {
 	return time.Time(t).Format("2006-01-02")
 }
