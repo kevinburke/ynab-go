@@ -1,10 +1,13 @@
 package ynab
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/kevinburke/go-types"
@@ -22,6 +25,40 @@ type Client struct {
 
 type TransactionListResponse struct {
 	Data TransactionListWrapper `json:"data"`
+}
+
+type TransactionResponse struct {
+	Data TransactionWrapper `json:"data"`
+}
+
+type TransactionWrapper struct {
+	Transaction *Transaction `json:"transaction"`
+}
+
+type UpdateTransactionRequest struct {
+	Transaction *UpdateTransaction `json:"transaction"`
+}
+
+type UpdateTransaction struct {
+	AccountID       *string           `json:"account_id,omitempty"`
+	Date            *Date             `json:"date,omitempty"`
+	Amount          *int64            `json:"amount,omitempty"`
+	PayeeID         *types.NullString `json:"payee_id,omitempty"`
+	PayeeName       *types.NullString `json:"payee_name,omitempty"`
+	CategoryID      *types.NullString `json:"category_id,omitempty"`
+	Memo            *types.NullString `json:"memo,omitempty"`
+	Cleared         *string           `json:"cleared,omitempty"`
+	Approved        *bool             `json:"approved,omitempty"`
+	FlagColor       *types.NullString `json:"flag_color,omitempty"`
+	Subtransactions []*SubTransaction `json:"subtransactions,omitempty"`
+}
+
+type SubTransaction struct {
+	Amount     int64             `json:"amount"`
+	PayeeID    *types.NullString `json:"payee_id,omitempty"`
+	PayeeName  *types.NullString `json:"payee_name,omitempty"`
+	CategoryID *types.NullString `json:"category_id,omitempty"`
+	Memo       *types.NullString `json:"memo,omitempty"`
 }
 
 type CategoryListResponse struct {
@@ -228,6 +265,42 @@ type BudgetService struct {
 }
 type TransactionService struct {
 	client *Client
+}
+
+func (c *Client) PutResource(ctx context.Context, pathPart string, sid string, req interface{}, resp interface{}) error {
+	sidPart := strings.Join([]string{pathPart, sid}, "/")
+	return c.MakeRequest(ctx, "PUT", sidPart, nil, req, resp)
+}
+
+func (t *TransactionService) UpdateTransaction(ctx context.Context, budgetID, transactionID string, req *UpdateTransactionRequest) (*TransactionResponse, error) {
+	resp := new(TransactionResponse)
+	err := t.client.PutResource(ctx, "/budgets/"+budgetID+"/transactions", transactionID, req, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, reqBody interface{}, v interface{}) error {
+	var rb io.Reader
+	if reqBody != nil || (method == "POST" || method == "PUT") {
+		reqBodyJSON, err := json.Marshal(reqBody)
+		if err != nil {
+			return err
+		}
+		rb = bytes.NewReader(reqBodyJSON)
+	}
+	if method == "GET" && data != nil {
+		pathPart = pathPart + "?" + data.Encode()
+	}
+	req, err := c.NewRequestWithContext(ctx, method, pathPart, rb)
+	if err != nil {
+		return err
+	}
+	if reqBody != nil && (method == "POST" || method == "PUT") {
+		req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	}
+	return c.Do(req, &v)
 }
 
 type CategoryService struct {
