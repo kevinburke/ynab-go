@@ -18,7 +18,7 @@ type Client struct {
 	*restclient.Client
 
 	Accounts     *AccountService
-	Budgets      *BudgetService
+	Budgets      func(budgetID string) *BudgetService
 	Categories   *CategoryService
 	Transactions *TransactionService
 }
@@ -268,20 +268,20 @@ type BudgetListWrapper struct {
 	Budgets []*Budget `json:"budgets"`
 }
 
-func (b *BudgetService) GetPage(ctx context.Context, data url.Values) (*BudgetListResponse, error) {
-	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets?"+data.Encode(), nil)
+func (c *Client) GetBudgets(ctx context.Context, data url.Values) (*BudgetListResponse, error) {
+	req, err := c.NewRequestWithContext(ctx, "GET", "/budgets?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
 	budgetResp := new(BudgetListResponse)
-	if err := b.client.Do(req, budgetResp); err != nil {
+	if err := c.Do(req, budgetResp); err != nil {
 		return nil, err
 	}
 	return budgetResp, nil
 }
 
-func (b *BudgetService) GetAccounts(ctx context.Context, budgetID string, data url.Values) (*AccountListResponse, error) {
-	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+budgetID+"/accounts?"+data.Encode(), nil)
+func (b *BudgetService) Accounts(ctx context.Context, data url.Values) (*AccountListResponse, error) {
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+b.id+"/accounts?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -292,8 +292,8 @@ func (b *BudgetService) GetAccounts(ctx context.Context, budgetID string, data u
 	return accountResp, nil
 }
 
-func (b *BudgetService) GetTransactions(ctx context.Context, budgetID string, data url.Values) (*TransactionListResponse, error) {
-	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+budgetID+"/transactions?"+data.Encode(), nil)
+func (b *BudgetService) Transactions(ctx context.Context, data url.Values) (*TransactionListResponse, error) {
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+b.id+"/transactions?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -304,8 +304,8 @@ func (b *BudgetService) GetTransactions(ctx context.Context, budgetID string, da
 	return transactionResp, nil
 }
 
-func (b *BudgetService) GetScheduledTransactions(ctx context.Context, budgetID string, data url.Values) (*ScheduledTransactionListResponse, error) {
-	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+budgetID+"/scheduled_transactions?"+data.Encode(), nil)
+func (b *BudgetService) ScheduledTransactions(ctx context.Context, data url.Values) (*ScheduledTransactionListResponse, error) {
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+b.id+"/scheduled_transactions?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -316,8 +316,8 @@ func (b *BudgetService) GetScheduledTransactions(ctx context.Context, budgetID s
 	return transactionResp, nil
 }
 
-func (b *BudgetService) GetCategories(ctx context.Context, budgetID string, data url.Values) (*CategoryListResponse, error) {
-	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+budgetID+"/categories?"+data.Encode(), nil)
+func (b *BudgetService) Categories(ctx context.Context, data url.Values) (*CategoryListResponse, error) {
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+b.id+"/categories?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -330,6 +330,8 @@ func (b *BudgetService) GetCategories(ctx context.Context, budgetID string, data
 
 type BudgetService struct {
 	client *Client
+	// the budget ID
+	id string
 }
 type TransactionService struct {
 	client *Client
@@ -340,9 +342,9 @@ func (c *Client) PutResource(ctx context.Context, pathPart string, sid string, r
 	return c.MakeRequest(ctx, "PUT", sidPart, nil, req, resp)
 }
 
-func (t *TransactionService) UpdateTransaction(ctx context.Context, budgetID, transactionID string, req *UpdateTransactionRequest) (*TransactionResponse, error) {
+func (b *BudgetService) UpdateTransaction(ctx context.Context, transactionID string, req *UpdateTransactionRequest) (*TransactionResponse, error) {
 	resp := new(TransactionResponse)
-	err := t.client.PutResource(ctx, "/budgets/"+budgetID+"/transactions", transactionID, req, resp)
+	err := b.client.PutResource(ctx, "/budgets/"+b.id+"/transactions", transactionID, req, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -392,8 +394,11 @@ func NewClient(token string) *Client {
 	c.Accounts = &AccountService{
 		client: c,
 	}
-	c.Budgets = &BudgetService{
-		client: c,
+	c.Budgets = func(id string) *BudgetService {
+		return &BudgetService{
+			client: c,
+			id:     id,
+		}
 	}
 	c.Transactions = &TransactionService{
 		client: c,

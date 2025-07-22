@@ -74,7 +74,7 @@ func TestUserAgentHeader(t *testing.T) {
 	client.Base = server.URL
 
 	// Make a request to trigger the User-Agent header
-	resp, err := client.Budgets.GetCategories(context.Background(), "category-id", nil)
+	resp, err := client.Budgets("budget-id").Categories(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +176,7 @@ func TestUpdateTransaction(t *testing.T) {
 		},
 	}
 
-	resp, err := client.Transactions.UpdateTransaction(context.Background(), "budget-123", "txn-456", req)
+	resp, err := client.Budgets("budget-123").UpdateTransaction(context.Background(), "txn-456", req)
 	if err != nil {
 		t.Fatal(err)
 	}

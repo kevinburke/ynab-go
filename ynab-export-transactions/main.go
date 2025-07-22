@@ -21,7 +21,7 @@ import (
 )
 
 func getBudgets(ctx context.Context, client *ynab.Client) ([]*ynab.Budget, error) {
-	budgetResp, err := client.Budgets.GetPage(ctx, url.Values{})
+	budgetResp, err := client.GetBudgets(ctx, url.Values{})
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func getBudgets(ctx context.Context, client *ynab.Client) ([]*ynab.Budget, error
 }
 
 func getTransactions(client *ynab.Client, budgetID string, data url.Values) ([]*ynab.Transaction, error) {
-	transactionResp, err := client.Budgets.GetTransactions(context.TODO(), budgetID, data)
+	transactionResp, err := client.Budgets(budgetID).Transactions(context.TODO(), data)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func getTransactions(client *ynab.Client, budgetID string, data url.Values) ([]*
 }
 
 func getCategories(client *ynab.Client, budgetID string, data url.Values) ([]*ynab.CategoryGroup, error) {
-	categoryResp, err := client.Budgets.GetCategories(context.TODO(), budgetID, data)
+	categoryResp, err := client.Budgets(budgetID).Categories(context.TODO(), data)
 	if err != nil {
 		return nil, err
 	}
