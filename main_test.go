@@ -217,3 +217,114 @@ func TestUpdateTransaction(t *testing.T) {
 		t.Errorf("expected response memo 'Updated memo', got %s", resp.Data.Transaction.Memo)
 	}
 }
+
+func TestCreateTransaction(t *testing.T) {
+	var receivedMethod, receivedPath string
+	var receivedBody []byte
+
+	mockResponse := `{
+		"data": {
+			"transaction_ids": ["e0d8d32f-6c93-4b92-be48-c4590f3ed2a7"],
+			"transaction": {
+				"account_id": "e0dc51c5-5136-4a3f-9019-84487d266cbb",
+				"account_name": "Cash",
+				"amount": -2500,
+				"approved": false,
+				"category_id": "97634123-0823-4c37-a2a6-8ec2bccb3c63",
+				"category_name": "Groceries",
+				"cleared": "uncleared",
+				"date": "2023-05-15",
+				"deleted": false,
+				"flag_color": "blue",
+				"id": "e0d8d32f-6c93-4b92-be48-c4590f3ed2a7",
+				"memo": "New grocery purchase",
+				"payee_name": "Local Store",
+				"subtransactions": []
+			},
+			"server_knowledge": 123456
+		}
+	}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Error("Failed to read request body:", err)
+			return
+		}
+		receivedBody = body
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(mockResponse))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	req := &CreateTransactionRequest{
+		Transaction: &NewTransaction{
+			AccountID:  "e0dc51c5-5136-4a3f-9019-84487d266cbb",
+			Date:       Date(time.Date(2023, 5, 15, 0, 0, 0, 0, time.UTC)),
+			Amount:     -2500,
+			PayeeName:  types.NullString{String: "Local Store", Valid: true},
+			CategoryID: types.NullString{String: "97634123-0823-4c37-a2a6-8ec2bccb3c63", Valid: true},
+			Memo:       types.NullString{String: "New grocery purchase", Valid: true},
+			Cleared:    ClearedStatusUncleared,
+			Approved:   false,
+			FlagColor:  FlagColorBlue,
+		},
+	}
+
+	resp, err := client.Budgets("budget-123").CreateTransaction(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "POST" {
+		t.Errorf("expected POST method, got %s", receivedMethod)
+	}
+
+	expectedPath := "/budgets/budget-123/transactions"
+	if receivedPath != expectedPath {
+		t.Errorf("expected path %s, got %s", expectedPath, receivedPath)
+	}
+
+	t.Logf("Received body: %q", string(receivedBody))
+
+	var sentData CreateTransactionRequest
+	if err := json.Unmarshal(receivedBody, &sentData); err != nil {
+		t.Fatal("failed to unmarshal sent body:", err)
+	}
+
+	if sentData.Transaction.Amount != -2500 {
+		t.Errorf("expected amount -2500, got %d", sentData.Transaction.Amount)
+	}
+
+	if sentData.Transaction.Memo.String != "New grocery purchase" {
+		t.Errorf("expected memo 'New grocery purchase', got %s", sentData.Transaction.Memo.String)
+	}
+
+	if sentData.Transaction.Cleared != ClearedStatusUncleared {
+		t.Errorf("expected cleared status 'uncleared', got %s", sentData.Transaction.Cleared)
+	}
+
+	if len(resp.Data.TransactionIDs) != 1 {
+		t.Errorf("expected 1 transaction ID, got %d", len(resp.Data.TransactionIDs))
+	}
+
+	if resp.Data.Transaction.Amount != -2500 {
+		t.Errorf("expected response amount -2500, got %d", resp.Data.Transaction.Amount)
+	}
+
+	if resp.Data.Transaction.FlagColor != FlagColorBlue {
+		t.Errorf("expected color blue, got %q", resp.Data.Transaction.FlagColor)
+	}
+
+	if resp.Data.ServerKnowledge != 123456 {
+		t.Errorf("expected server knowledge 123456, got %d", resp.Data.ServerKnowledge)
+	}
+}

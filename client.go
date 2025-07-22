@@ -32,6 +32,43 @@ type TransactionWrapper struct {
 	Transaction *Transaction `json:"transaction"`
 }
 
+type CreateTransactionRequest struct {
+	Transaction *NewTransaction `json:"transaction"`
+}
+
+type NewTransaction struct {
+	AccountID       string             `json:"account_id"`
+	Date            Date               `json:"date"`
+	Amount          int64              `json:"amount"`
+	PayeeID         types.NullString   `json:"payee_id,omitempty"`
+	PayeeName       types.NullString   `json:"payee_name,omitempty"`
+	CategoryID      types.NullString   `json:"category_id,omitempty"`
+	Memo            types.NullString   `json:"memo,omitempty"`
+	Cleared         ClearedStatus      `json:"cleared,omitempty"`
+	Approved        bool               `json:"approved"` // Defaults to false if not specified
+	FlagColor       FlagColor          `json:"flag_color,omitempty"`
+	Subtransactions []*NewSubTransaction `json:"subtransactions,omitempty"`
+	ImportID        types.NullString   `json:"import_id,omitempty"`
+}
+
+type NewSubTransaction struct {
+	Amount     int64            `json:"amount"`
+	PayeeID    types.NullString `json:"payee_id,omitempty"`
+	PayeeName  types.NullString `json:"payee_name,omitempty"`
+	CategoryID types.NullString `json:"category_id,omitempty"`
+	Memo       types.NullString `json:"memo,omitempty"`
+}
+
+type CreateTransactionResponse struct {
+	Data CreateTransactionData `json:"data"`
+}
+
+type CreateTransactionData struct {
+	TransactionIDs   []string     `json:"transaction_ids"`
+	Transaction      *Transaction `json:"transaction,omitempty"`
+	ServerKnowledge  int64        `json:"server_knowledge"`
+}
+
 type UpdateTransactionRequest struct {
 	Transaction *UpdateTransaction `json:"transaction"`
 }
@@ -190,6 +227,15 @@ type Transaction struct {
 	Subtransactions       []Transaction    `json:"subtransactions"`
 }
 
+// ClearedStatus represents the cleared status of a transaction
+type ClearedStatus string
+
+const (
+	ClearedStatusCleared    ClearedStatus = "cleared"
+	ClearedStatusUncleared  ClearedStatus = "uncleared"
+	ClearedStatusReconciled ClearedStatus = "reconciled"
+)
+
 // FlagColor represents the available flag colors for transactions
 type FlagColor string
 
@@ -330,6 +376,15 @@ type BudgetService struct {
 func (c *Client) PutResource(ctx context.Context, pathPart string, sid string, req interface{}, resp interface{}) error {
 	sidPart := strings.Join([]string{pathPart, sid}, "/")
 	return c.MakeRequest(ctx, "PUT", sidPart, nil, req, resp)
+}
+
+func (b *BudgetService) CreateTransaction(ctx context.Context, req *CreateTransactionRequest) (*CreateTransactionResponse, error) {
+	resp := new(CreateTransactionResponse)
+	err := b.client.MakeRequest(ctx, "POST", "/budgets/"+b.id+"/transactions", nil, req, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (b *BudgetService) UpdateTransaction(ctx context.Context, transactionID string, req *UpdateTransactionRequest) (*TransactionResponse, error) {

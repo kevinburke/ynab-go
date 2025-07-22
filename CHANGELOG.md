@@ -1,5 +1,9 @@
 # Changelog & Upgrade Guide
 
+### v1.1.0
+
+Add CreateTransaction endpoint.
+
 ### v1.0.0
 
 The main change is that BudgetService now requires a budget ID at creation time, simplifying the API by removing the need to pass budget IDs to individual methods.
