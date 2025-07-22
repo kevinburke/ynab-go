@@ -37,18 +37,18 @@ type CreateTransactionRequest struct {
 }
 
 type NewTransaction struct {
-	AccountID       string             `json:"account_id"`
-	Date            Date               `json:"date"`
-	Amount          int64              `json:"amount"`
-	PayeeID         types.NullString   `json:"payee_id,omitempty"`
-	PayeeName       types.NullString   `json:"payee_name,omitempty"`
-	CategoryID      types.NullString   `json:"category_id,omitempty"`
-	Memo            types.NullString   `json:"memo,omitempty"`
-	Cleared         ClearedStatus      `json:"cleared,omitempty"`
-	Approved        bool               `json:"approved"` // Defaults to false if not specified
-	FlagColor       FlagColor          `json:"flag_color,omitempty"`
+	AccountID       string               `json:"account_id"`
+	Date            Date                 `json:"date"`
+	Amount          int64                `json:"amount"`
+	PayeeID         types.NullString     `json:"payee_id,omitempty"`
+	PayeeName       types.NullString     `json:"payee_name,omitempty"`
+	CategoryID      types.NullString     `json:"category_id,omitempty"`
+	Memo            types.NullString     `json:"memo,omitempty"`
+	Cleared         ClearedStatus        `json:"cleared,omitempty"`
+	Approved        bool                 `json:"approved"` // Defaults to false if not specified
+	FlagColor       FlagColor            `json:"flag_color,omitempty"`
 	Subtransactions []*NewSubTransaction `json:"subtransactions,omitempty"`
-	ImportID        types.NullString   `json:"import_id,omitempty"`
+	ImportID        types.NullString     `json:"import_id,omitempty"`
 }
 
 type NewSubTransaction struct {
@@ -64,9 +64,9 @@ type CreateTransactionResponse struct {
 }
 
 type CreateTransactionData struct {
-	TransactionIDs   []string     `json:"transaction_ids"`
-	Transaction      *Transaction `json:"transaction,omitempty"`
-	ServerKnowledge  int64        `json:"server_knowledge"`
+	TransactionIDs  []string     `json:"transaction_ids"`
+	Transaction     *Transaction `json:"transaction,omitempty"`
+	ServerKnowledge int64        `json:"server_knowledge"`
 }
 
 type UpdateTransactionRequest struct {
@@ -418,7 +418,7 @@ func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string
 	return c.Do(req, &v)
 }
 
-const Version = "1.0.0"
+const Version = "1.1.0"
 
 func (c *Client) NewRequestWithContext(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	req, err := c.Client.NewRequestWithContext(ctx, method, path, body)
