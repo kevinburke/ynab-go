@@ -75,7 +75,7 @@ type UpdateTransactionRequest struct {
 
 type UpdateTransaction struct {
 	AccountID       *string           `json:"account_id,omitempty"`
-	Date            NullDate          `json:"date,omitempty"`
+	Date            Date              `json:"date"`
 	Amount          *int64            `json:"amount,omitempty"`
 	PayeeID         types.NullString  `json:"payee_id,omitempty"`
 	PayeeName       types.NullString  `json:"payee_name,omitempty"`
