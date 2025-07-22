@@ -418,7 +418,7 @@ func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string
 	return c.Do(req, &v)
 }
 
-const Version = "1.1.0"
+const Version = "1.2.0"
 
 func (c *Client) NewRequestWithContext(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	req, err := c.Client.NewRequestWithContext(ctx, method, path, body)
