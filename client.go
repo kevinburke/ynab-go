@@ -375,7 +375,7 @@ type CategoryService struct {
 	client *Client
 }
 
-const Version = "0.6.0"
+const Version = "0.7.0"
 
 func (c *Client) NewRequestWithContext(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	req, err := c.Client.NewRequestWithContext(ctx, method, path, body)
