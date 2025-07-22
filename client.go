@@ -17,10 +17,7 @@ import (
 type Client struct {
 	*restclient.Client
 
-	Accounts     *AccountService
-	Budgets      func(budgetID string) *BudgetService
-	Categories   *CategoryService
-	Transactions *TransactionService
+	Budgets func(budgetID string) *BudgetService
 }
 
 type TransactionListResponse struct {
@@ -227,10 +224,6 @@ func (fc FlagColor) MarshalJSON() ([]byte, error) {
 	return json.Marshal(string(fc))
 }
 
-type AccountService struct {
-	client *Client
-}
-
 type Account struct {
 	ID              string
 	Name            string
@@ -333,9 +326,6 @@ type BudgetService struct {
 	// the budget ID
 	id string
 }
-type TransactionService struct {
-	client *Client
-}
 
 func (c *Client) PutResource(ctx context.Context, pathPart string, sid string, req interface{}, resp interface{}) error {
 	sidPart := strings.Join([]string{pathPart, sid}, "/")
@@ -373,10 +363,6 @@ func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string
 	return c.Do(req, &v)
 }
 
-type CategoryService struct {
-	client *Client
-}
-
 const Version = "0.7.0"
 
 func (c *Client) NewRequestWithContext(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
@@ -391,20 +377,11 @@ func (c *Client) NewRequestWithContext(ctx context.Context, method, path string,
 func NewClient(token string) *Client {
 	client := restclient.NewBearerClient(token, "https://api.youneedabudget.com/v1")
 	c := &Client{Client: client}
-	c.Accounts = &AccountService{
-		client: c,
-	}
 	c.Budgets = func(id string) *BudgetService {
 		return &BudgetService{
 			client: c,
 			id:     id,
 		}
-	}
-	c.Transactions = &TransactionService{
-		client: c,
-	}
-	c.Categories = &CategoryService{
-		client: c,
 	}
 	return c
 }
