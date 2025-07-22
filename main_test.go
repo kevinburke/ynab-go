@@ -25,7 +25,7 @@ var resp = []byte(`{"data": {
 		"cleared": "reconciled",
 		"date": "2019-01-18",
 		"deleted": false,
-		"flag_color": null,
+		"flag_color": "red",
 		"id": "e0d8d32f-6c93-4b92-be48-c4590f3ed2a7",
 		"import_id": null,
 		"matched_transaction_id": null,
@@ -124,7 +124,7 @@ func TestDateUnmarshalJSON(t *testing.T) {
 func TestUpdateTransaction(t *testing.T) {
 	var receivedMethod, receivedPath string
 	var receivedBody []byte
-	
+
 	mockResponse := `{
 		"data": {
 			"transaction": {
@@ -137,7 +137,7 @@ func TestUpdateTransaction(t *testing.T) {
 				"cleared": "cleared",
 				"date": "2023-05-15",
 				"deleted": false,
-				"flag_color": null,
+				"flag_color": "red",
 				"id": "e0d8d32f-6c93-4b92-be48-c4590f3ed2a7",
 				"memo": "Updated memo",
 				"payee_name": "Updated Store",
@@ -149,14 +149,14 @@ func TestUpdateTransaction(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedMethod = r.Method
 		receivedPath = r.URL.Path
-		
+
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Error("Failed to read request body:", err)
 			return
 		}
 		receivedBody = body
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(mockResponse))
@@ -170,8 +170,9 @@ func TestUpdateTransaction(t *testing.T) {
 	memo := types.NullString{String: "Updated memo", Valid: true}
 	req := &UpdateTransactionRequest{
 		Transaction: &UpdateTransaction{
-			Amount: &amount,
-			Memo:   &memo,
+			Amount:    &amount,
+			Memo:      memo,
+			FlagColor: types.NullString{String: string(FlagColorRed), Valid: true},
 		},
 	}
 
@@ -190,7 +191,7 @@ func TestUpdateTransaction(t *testing.T) {
 	}
 
 	t.Logf("Received body: %q", string(receivedBody))
-	
+
 	var sentData UpdateTransactionRequest
 	if err := json.Unmarshal(receivedBody, &sentData); err != nil {
 		t.Fatal("failed to unmarshal sent body:", err)
@@ -206,6 +207,10 @@ func TestUpdateTransaction(t *testing.T) {
 
 	if resp.Data.Transaction.Amount != -3000 {
 		t.Errorf("expected response amount -3000, got %d", resp.Data.Transaction.Amount)
+	}
+
+	if resp.Data.Transaction.FlagColor != FlagColorRed {
+		t.Errorf("expected color red, got %q", resp.Data.Transaction.FlagColor)
 	}
 
 	if resp.Data.Transaction.Memo != "Updated memo" {

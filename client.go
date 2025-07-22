@@ -41,24 +41,24 @@ type UpdateTransactionRequest struct {
 
 type UpdateTransaction struct {
 	AccountID       *string           `json:"account_id,omitempty"`
-	Date            *Date             `json:"date,omitempty"`
+	Date            NullDate          `json:"date,omitempty"`
 	Amount          *int64            `json:"amount,omitempty"`
-	PayeeID         *types.NullString `json:"payee_id,omitempty"`
-	PayeeName       *types.NullString `json:"payee_name,omitempty"`
-	CategoryID      *types.NullString `json:"category_id,omitempty"`
-	Memo            *types.NullString `json:"memo,omitempty"`
-	Cleared         *string           `json:"cleared,omitempty"`
+	PayeeID         types.NullString  `json:"payee_id,omitempty"`
+	PayeeName       types.NullString  `json:"payee_name,omitempty"`
+	CategoryID      types.NullString  `json:"category_id,omitempty"`
+	Memo            types.NullString  `json:"memo,omitempty"`
+	Cleared         types.NullString  `json:"cleared,omitempty"`
 	Approved        *bool             `json:"approved,omitempty"`
-	FlagColor       *types.NullString `json:"flag_color,omitempty"`
+	FlagColor       types.NullString  `json:"flag_color,omitempty"`
 	Subtransactions []*SubTransaction `json:"subtransactions,omitempty"`
 }
 
 type SubTransaction struct {
-	Amount     int64             `json:"amount"`
-	PayeeID    *types.NullString `json:"payee_id,omitempty"`
-	PayeeName  *types.NullString `json:"payee_name,omitempty"`
-	CategoryID *types.NullString `json:"category_id,omitempty"`
-	Memo       *types.NullString `json:"memo,omitempty"`
+	Amount     int64            `json:"amount"`
+	PayeeID    types.NullString `json:"payee_id,omitempty"`
+	PayeeName  types.NullString `json:"payee_name,omitempty"`
+	CategoryID types.NullString `json:"category_id,omitempty"`
+	Memo       types.NullString `json:"memo,omitempty"`
 }
 
 type CategoryListResponse struct {
@@ -122,6 +122,38 @@ func (t Date) GoString() string {
 	return time.Time(t).GoString()
 }
 
+// A NullDate is a Date that may be null.
+type NullDate struct {
+	Valid bool
+	Date  Date
+}
+
+func (nt *NullDate) UnmarshalJSON(b []byte) error {
+	if string(b) == "null" {
+		nt.Valid = false
+		return nil
+	}
+	var d Date
+	err := json.Unmarshal(b, &d)
+	if err != nil {
+		return err
+	}
+	nt.Valid = true
+	nt.Date = d
+	return nil
+}
+
+func (nt NullDate) MarshalJSON() ([]byte, error) {
+	if !nt.Valid {
+		return []byte("null"), nil
+	}
+	b, err := json.Marshal(nt.Date)
+	if err != nil {
+		return []byte{}, err
+	}
+	return b, nil
+}
+
 type ScheduledTransaction struct {
 	AccountID         string `json:"account_id"`
 	AccountName       string `json:"account_name"`
@@ -132,6 +164,7 @@ type ScheduledTransaction struct {
 	DateFirst         Date `json:"date_first"`
 	DateNext          Date `json:"date_next"`
 	Deleted           bool
+	FlagColor         FlagColor `json:"flag_color"`
 	Frequency         string
 	ID                string `json:"id"`
 	Memo              string
@@ -150,13 +183,48 @@ type Transaction struct {
 	Cleared               string
 	Date                  Date
 	Deleted               bool
-	ID                    string `json:"id"`
+	FlagColor             FlagColor `json:"flag_color"`
+	ID                    string    `json:"id"`
 	Memo                  string
 	PayeeName             string           `json:"payee_name"`
 	TransferAccountID     types.NullString `json:"transfer_account_id"`
 	TransferTransactionID types.NullString `json:"transfer_transaction_id"`
 	MatchedTransactionID  types.NullString `json:"matched_transaction_id"`
 	Subtransactions       []Transaction    `json:"subtransactions"`
+}
+
+// FlagColor represents the available flag colors for transactions
+type FlagColor string
+
+const (
+	FlagColorRed    FlagColor = "red"
+	FlagColorOrange FlagColor = "orange"
+	FlagColorYellow FlagColor = "yellow"
+	FlagColorGreen  FlagColor = "green"
+	FlagColorBlue   FlagColor = "blue"
+	FlagColorPurple FlagColor = "purple"
+	FlagColorEmpty  FlagColor = ""
+)
+
+func (fc *FlagColor) UnmarshalJSON(b []byte) error {
+	if string(b) == "null" {
+		*fc = FlagColorEmpty
+		return nil
+	}
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+	*fc = FlagColor(s)
+	return nil
+}
+
+func (fc FlagColor) MarshalJSON() ([]byte, error) {
+	if fc == FlagColorEmpty {
+		return []byte("null"), nil
+	}
+	return json.Marshal(string(fc))
 }
 
 type AccountService struct {
