@@ -328,3 +328,45 @@ func TestCreateTransaction(t *testing.T) {
 		t.Errorf("expected server knowledge 123456, got %d", resp.Data.ServerKnowledge)
 	}
 }
+
+func TestCustomUserAgent(t *testing.T) {
+	var capturedUserAgent string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedUserAgent = r.Header.Get("User-Agent")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"budgets": []}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	// Test default user agent
+	defaultUA := client.GetUserAgent()
+	expectedDefault := "ynab-go/" + Version
+	if defaultUA != expectedDefault {
+		t.Errorf("expected default user agent '%s', got '%s'", expectedDefault, defaultUA)
+	}
+
+	// Test setting custom user agent
+	customUA := "transaction-categorizer/1.2.0 ynab-go/" + Version
+	client.SetUserAgent(customUA)
+
+	if client.GetUserAgent() != customUA {
+		t.Errorf("expected custom user agent '%s', got '%s'", customUA, client.GetUserAgent())
+	}
+
+	// Make a request to verify the custom user agent is sent
+	_, err := client.Budgets("budget-id").Categories(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(capturedUserAgent, "transaction-categorizer/1.2.0") {
+		t.Errorf("User-Agent header does not contain 'transaction-categorizer/1.2.0': %s", capturedUserAgent)
+	}
+
+	if !strings.Contains(capturedUserAgent, "ynab-go/"+Version) {
+		t.Errorf("User-Agent header does not contain 'ynab-go/%s': %s", Version, capturedUserAgent)
+	}
+}

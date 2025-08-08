@@ -17,7 +17,8 @@ import (
 type Client struct {
 	*restclient.Client
 
-	Budgets func(budgetID string) *BudgetService
+	userAgent string
+	Budgets   func(budgetID string) *BudgetService
 }
 
 type TransactionListResponse struct {
@@ -420,13 +421,32 @@ func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string
 
 const Version = "1.2.0"
 
+var defaultUserAgent = "ynab-go/" + Version
+
 func (c *Client) NewRequestWithContext(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	req, err := c.Client.NewRequestWithContext(ctx, method, path, body)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "ynab-go/"+Version+" "+req.Header.Get("User-Agent"))
+	userAgent := c.userAgent
+	if userAgent == "" {
+		userAgent = defaultUserAgent
+	}
+	req.Header.Set("User-Agent", userAgent+" "+req.Header.Get("User-Agent"))
 	return req, nil
+}
+
+// GetUserAgent returns the current User-Agent string that will be sent with requests
+func (c *Client) GetUserAgent() string {
+	if c.userAgent == "" {
+		return defaultUserAgent
+	}
+	return c.userAgent
+}
+
+// SetUserAgent sets a custom User-Agent string for requests
+func (c *Client) SetUserAgent(userAgent string) {
+	c.userAgent = userAgent
 }
 
 func NewClient(token string) *Client {
