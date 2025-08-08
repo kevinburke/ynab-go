@@ -419,7 +419,7 @@ func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string
 	return c.Do(req, &v)
 }
 
-const Version = "1.2.0"
+const Version = "1.3.0"
 
 var defaultUserAgent = "ynab-go/" + Version
 
