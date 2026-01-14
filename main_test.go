@@ -329,6 +329,66 @@ func TestCreateTransaction(t *testing.T) {
 	}
 }
 
+func TestDeleteTransaction(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	mockResponse := `{
+		"data": {
+			"transaction": {
+				"account_id": "e0dc51c5-5136-4a3f-9019-84487d266cbb",
+				"account_name": "Cash",
+				"amount": -2000,
+				"approved": true,
+				"category_id": "97634123-0823-4c37-a2a6-8ec2bccb3c63",
+				"category_name": "Dining Out",
+				"cleared": "reconciled",
+				"date": "2023-05-15",
+				"deleted": true,
+				"flag_color": "red",
+				"id": "e0d8d32f-6c93-4b92-be48-c4590f3ed2a7",
+				"memo": "Ice Cream",
+				"payee_name": "Corner Store",
+				"subtransactions": []
+			}
+		}
+	}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(mockResponse))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").DeleteTransaction(context.Background(), "txn-456")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "DELETE" {
+		t.Errorf("expected DELETE method, got %s", receivedMethod)
+	}
+
+	expectedPath := "/budgets/budget-123/transactions/txn-456"
+	if receivedPath != expectedPath {
+		t.Errorf("expected path %s, got %s", expectedPath, receivedPath)
+	}
+
+	if !resp.Data.Transaction.Deleted {
+		t.Errorf("expected transaction to be marked as deleted")
+	}
+
+	if resp.Data.Transaction.ID != "e0d8d32f-6c93-4b92-be48-c4590f3ed2a7" {
+		t.Errorf("expected transaction ID 'e0d8d32f-6c93-4b92-be48-c4590f3ed2a7', got %s", resp.Data.Transaction.ID)
+	}
+}
+
 func TestCustomUserAgent(t *testing.T) {
 	var capturedUserAgent string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

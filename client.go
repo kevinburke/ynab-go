@@ -38,18 +38,19 @@ type CreateTransactionRequest struct {
 }
 
 type NewTransaction struct {
-	AccountID       string               `json:"account_id"`
-	Date            Date                 `json:"date"`
-	Amount          int64                `json:"amount"`
-	PayeeID         types.NullString     `json:"payee_id,omitempty"`
-	PayeeName       types.NullString     `json:"payee_name,omitempty"`
-	CategoryID      types.NullString     `json:"category_id,omitempty"`
-	Memo            types.NullString     `json:"memo,omitempty"`
-	Cleared         ClearedStatus        `json:"cleared,omitempty"`
-	Approved        bool                 `json:"approved"` // Defaults to false if not specified
-	FlagColor       FlagColor            `json:"flag_color,omitempty"`
-	Subtransactions []*NewSubTransaction `json:"subtransactions,omitempty"`
-	ImportID        types.NullString     `json:"import_id,omitempty"`
+	AccountID         string               `json:"account_id"`
+	Date              Date                 `json:"date"`
+	Amount            int64                `json:"amount"`
+	PayeeID           types.NullString     `json:"payee_id,omitempty"`
+	PayeeName         types.NullString     `json:"payee_name,omitempty"`
+	CategoryID        types.NullString     `json:"category_id,omitempty"`
+	Memo              types.NullString     `json:"memo,omitempty"`
+	Cleared           ClearedStatus        `json:"cleared,omitempty"`
+	Approved          bool                 `json:"approved"` // Defaults to false if not specified
+	FlagColor         FlagColor            `json:"flag_color,omitempty"`
+	Subtransactions   []*NewSubTransaction `json:"subtransactions,omitempty"`
+	ImportID          types.NullString     `json:"import_id,omitempty"`
+	TransferAccountID types.NullString     `json:"transfer_account_id,omitempty"` // For creating transfers
 }
 
 type NewSubTransaction struct {
@@ -391,6 +392,15 @@ func (b *BudgetService) CreateTransaction(ctx context.Context, req *CreateTransa
 func (b *BudgetService) UpdateTransaction(ctx context.Context, transactionID string, req *UpdateTransactionRequest) (*TransactionResponse, error) {
 	resp := new(TransactionResponse)
 	err := b.client.PutResource(ctx, "/budgets/"+b.id+"/transactions", transactionID, req, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (b *BudgetService) DeleteTransaction(ctx context.Context, transactionID string) (*TransactionResponse, error) {
+	resp := new(TransactionResponse)
+	err := b.client.MakeRequest(ctx, "DELETE", "/budgets/"+b.id+"/transactions/"+transactionID, nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
