@@ -216,7 +216,7 @@ type Transaction struct {
 	Approved              bool
 	CategoryID            types.NullString `json:"category_id"`
 	CategoryName          types.NullString `json:"category_name"`
-	Cleared               string
+	Cleared               ClearedStatus
 	Date                  Date
 	Deleted               bool
 	FlagColor             FlagColor `json:"flag_color"`

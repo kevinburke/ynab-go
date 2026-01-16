@@ -119,7 +119,7 @@ func main() {
 		}
 		cgroup := categoryMap[txn.CategoryName.String]
 		if *category == "" || txn.CategoryName.String == *category || cgroup == *category {
-			w.Write([]string{txn.AccountName, "", txn.Date.String(), txn.PayeeName, "", cgroup, txn.CategoryName.String, txn.Memo, outflow, inflow, txn.Cleared})
+			w.Write([]string{txn.AccountName, "", txn.Date.String(), txn.PayeeName, "", cgroup, txn.CategoryName.String, txn.Memo, outflow, inflow, string(txn.Cleared)})
 		}
 	}
 	w.Flush()
