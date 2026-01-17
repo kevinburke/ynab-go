@@ -282,6 +282,7 @@ type Account struct {
 	Balance         int64
 	StartingBalance int64 `json:"starting_balance"`
 	Deleted         bool
+	TransferPayeeID types.NullString `json:"transfer_payee_id"`
 }
 
 func (a Account) CashBacked() bool {
@@ -405,6 +406,50 @@ func (b *BudgetService) DeleteTransaction(ctx context.Context, transactionID str
 		return nil, err
 	}
 	return resp, nil
+}
+
+// NewTransferTransaction creates a NewTransaction configured as a transfer between accounts.
+// The sourceAccountID is where the transaction will appear (the "from" account).
+// The targetAccount must have a valid TransferPayeeID (the "to" account).
+// A positive amount transfers money into the source account; a negative amount transfers out.
+func NewTransferTransaction(sourceAccountID string, targetAccount *Account, amount int64, date Date) (*NewTransaction, error) {
+	if !targetAccount.TransferPayeeID.Valid {
+		return nil, &Error{Message: "target account does not have a valid transfer_payee_id"}
+	}
+	return &NewTransaction{
+		AccountID: sourceAccountID,
+		Date:      date,
+		Amount:    amount,
+		PayeeID:   targetAccount.TransferPayeeID,
+		Approved:  false,
+	}, nil
+}
+
+// UpdateTransactionToTransfer creates an UpdateTransaction that converts an existing
+// transaction into a transfer to the target account. The existing transaction's
+// date, amount, memo, cleared status, and approval are preserved.
+// The targetAccount must have a valid TransferPayeeID.
+func UpdateTransactionToTransfer(existingTxn *Transaction, targetAccount *Account) (*UpdateTransaction, error) {
+	if !targetAccount.TransferPayeeID.Valid {
+		return nil, &Error{Message: "target account does not have a valid transfer_payee_id"}
+	}
+	return &UpdateTransaction{
+		Date:     existingTxn.Date,
+		Amount:   &existingTxn.Amount,
+		PayeeID:  targetAccount.TransferPayeeID,
+		Memo:     types.NullString{String: existingTxn.Memo, Valid: existingTxn.Memo != ""},
+		Cleared:  types.NullString{String: string(existingTxn.Cleared), Valid: existingTxn.Cleared != ""},
+		Approved: &existingTxn.Approved,
+	}, nil
+}
+
+// Error represents an error from the YNAB API or this client library.
+type Error struct {
+	Message string
+}
+
+func (e *Error) Error() string {
+	return e.Message
 }
 
 func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, reqBody interface{}, v interface{}) error {

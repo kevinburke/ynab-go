@@ -430,3 +430,401 @@ func TestCustomUserAgent(t *testing.T) {
 		t.Errorf("User-Agent header does not contain 'ynab-go/%s': %s", Version, capturedUserAgent)
 	}
 }
+
+func TestNewTransferTransaction(t *testing.T) {
+	sourceAccountID := "source-account-123"
+	targetAccount := &Account{
+		ID:              "target-account-456",
+		Name:            "Savings",
+		TransferPayeeID: types.NullString{String: "transfer-payee-789", Valid: true},
+	}
+	amount := int64(-50000) // $50 transfer out
+	date := Date(time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC))
+
+	txn, err := NewTransferTransaction(sourceAccountID, targetAccount, amount, date)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if txn.AccountID != sourceAccountID {
+		t.Errorf("expected account_id %s, got %s", sourceAccountID, txn.AccountID)
+	}
+
+	if txn.PayeeID.String != "transfer-payee-789" {
+		t.Errorf("expected payee_id 'transfer-payee-789', got %s", txn.PayeeID.String)
+	}
+
+	if !txn.PayeeID.Valid {
+		t.Error("expected payee_id to be valid")
+	}
+
+	if txn.Amount != amount {
+		t.Errorf("expected amount %d, got %d", amount, txn.Amount)
+	}
+
+	// Verify the JSON marshaling is correct
+	data, err := json.Marshal(txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded map[string]interface{}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+
+	if decoded["payee_id"] != "transfer-payee-789" {
+		t.Errorf("expected JSON payee_id to be 'transfer-payee-789', got %v", decoded["payee_id"])
+	}
+}
+
+func TestNewTransferTransactionInvalidTarget(t *testing.T) {
+	sourceAccountID := "source-account-123"
+	targetAccount := &Account{
+		ID:              "target-account-456",
+		Name:            "Savings",
+		TransferPayeeID: types.NullString{Valid: false}, // No transfer_payee_id
+	}
+	amount := int64(-50000)
+	date := Date(time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC))
+
+	_, err := NewTransferTransaction(sourceAccountID, targetAccount, amount, date)
+	if err == nil {
+		t.Error("expected error for account without transfer_payee_id, got nil")
+	}
+
+	expectedMsg := "target account does not have a valid transfer_payee_id"
+	if err.Error() != expectedMsg {
+		t.Errorf("expected error message %q, got %q", expectedMsg, err.Error())
+	}
+}
+
+func TestUpdateTransactionToTransfer(t *testing.T) {
+	existingTxn := &Transaction{
+		ID:          "existing-txn-123",
+		AccountID:   "checking-account",
+		AccountName: "Checking",
+		Date:        Date(time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC)),
+		Amount:      -50000,
+		Memo:        "ATM withdrawal",
+		Cleared:     ClearedStatusCleared,
+		Approved:    true,
+		PayeeName:   "ATM",
+	}
+
+	targetAccount := &Account{
+		ID:              "target-account-456",
+		Name:            "Savings",
+		TransferPayeeID: types.NullString{String: "transfer-payee-789", Valid: true},
+	}
+
+	update, err := UpdateTransactionToTransfer(existingTxn, targetAccount)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if update.PayeeID.String != "transfer-payee-789" {
+		t.Errorf("expected payee_id 'transfer-payee-789', got %s", update.PayeeID.String)
+	}
+
+	if !update.PayeeID.Valid {
+		t.Error("expected payee_id to be valid")
+	}
+
+	// Verify existing transaction data is preserved
+	if *update.Amount != -50000 {
+		t.Errorf("expected amount -50000, got %d", *update.Amount)
+	}
+
+	if update.Memo.String != "ATM withdrawal" {
+		t.Errorf("expected memo 'ATM withdrawal', got %s", update.Memo.String)
+	}
+
+	if update.Cleared.String != "cleared" {
+		t.Errorf("expected cleared 'cleared', got %s", update.Cleared.String)
+	}
+
+	if !*update.Approved {
+		t.Error("expected approved to be true")
+	}
+
+	// Verify the JSON marshaling is correct
+	data, err := json.Marshal(update)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded map[string]interface{}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+
+	if decoded["payee_id"] != "transfer-payee-789" {
+		t.Errorf("expected JSON payee_id to be 'transfer-payee-789', got %v", decoded["payee_id"])
+	}
+}
+
+func TestUpdateTransactionToTransferInvalidTarget(t *testing.T) {
+	existingTxn := &Transaction{
+		ID:        "existing-txn-123",
+		AccountID: "checking-account",
+		Date:      Date(time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC)),
+		Amount:    -50000,
+	}
+
+	targetAccount := &Account{
+		ID:              "target-account-456",
+		Name:            "Savings",
+		TransferPayeeID: types.NullString{Valid: false},
+	}
+
+	_, err := UpdateTransactionToTransfer(existingTxn, targetAccount)
+	if err == nil {
+		t.Error("expected error for account without transfer_payee_id, got nil")
+	}
+
+	expectedMsg := "target account does not have a valid transfer_payee_id"
+	if err.Error() != expectedMsg {
+		t.Errorf("expected error message %q, got %q", expectedMsg, err.Error())
+	}
+}
+
+func TestCreateTransferTransactionIntegration(t *testing.T) {
+	var receivedBody []byte
+
+	mockResponse := `{
+		"data": {
+			"transaction_ids": ["transfer-txn-123"],
+			"transaction": {
+				"account_id": "checking-account",
+				"account_name": "Checking",
+				"amount": -100000,
+				"approved": false,
+				"category_id": null,
+				"category_name": null,
+				"cleared": "uncleared",
+				"date": "2023-06-15",
+				"deleted": false,
+				"flag_color": null,
+				"id": "transfer-txn-123",
+				"memo": "",
+				"payee_name": "Transfer : Savings",
+				"subtransactions": [],
+				"transfer_account_id": "savings-account",
+				"transfer_transaction_id": "transfer-txn-456"
+			},
+			"server_knowledge": 12345
+		}
+	}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = body
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(mockResponse))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	savingsAccount := &Account{
+		ID:              "savings-account",
+		Name:            "Savings",
+		TransferPayeeID: types.NullString{String: "savings-transfer-payee", Valid: true},
+	}
+
+	txn, err := NewTransferTransaction(
+		"checking-account",
+		savingsAccount,
+		-100000, // $100 transfer out
+		Date(time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC)),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := client.Budgets("budget-123").CreateTransaction(context.Background(), &CreateTransactionRequest{
+		Transaction: txn,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify the request body contains the transfer payee ID
+	var sentData CreateTransactionRequest
+	if err := json.Unmarshal(receivedBody, &sentData); err != nil {
+		t.Fatal("failed to unmarshal sent body:", err)
+	}
+
+	if sentData.Transaction.PayeeID.String != "savings-transfer-payee" {
+		t.Errorf("expected payee_id 'savings-transfer-payee', got %s", sentData.Transaction.PayeeID.String)
+	}
+
+	// Verify response shows transfer was created
+	if resp.Data.Transaction.TransferAccountID.String != "savings-account" {
+		t.Errorf("expected transfer_account_id 'savings-account', got %s", resp.Data.Transaction.TransferAccountID.String)
+	}
+}
+
+func TestUpdateToTransferIntegration(t *testing.T) {
+	var receivedBody []byte
+
+	mockResponse := `{
+		"data": {
+			"transaction": {
+				"account_id": "checking-account",
+				"account_name": "Checking",
+				"amount": -50000,
+				"approved": true,
+				"category_id": null,
+				"category_name": null,
+				"cleared": "cleared",
+				"date": "2023-06-15",
+				"deleted": false,
+				"flag_color": null,
+				"id": "existing-txn-123",
+				"memo": "ATM withdrawal",
+				"payee_name": "Transfer : Savings",
+				"subtransactions": [],
+				"transfer_account_id": "savings-account",
+				"transfer_transaction_id": "transfer-txn-789"
+			}
+		}
+	}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = body
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(mockResponse))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	// Simulate an existing transaction that we want to convert to a transfer
+	existingTxn := &Transaction{
+		ID:          "existing-txn-123",
+		AccountID:   "checking-account",
+		AccountName: "Checking",
+		Date:        Date(time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC)),
+		Amount:      -50000,
+		Memo:        "ATM withdrawal",
+		Cleared:     ClearedStatusCleared,
+		Approved:    true,
+		PayeeName:   "ATM",
+	}
+
+	savingsAccount := &Account{
+		ID:              "savings-account",
+		Name:            "Savings",
+		TransferPayeeID: types.NullString{String: "savings-transfer-payee", Valid: true},
+	}
+
+	update, err := UpdateTransactionToTransfer(existingTxn, savingsAccount)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := client.Budgets("budget-123").UpdateTransaction(
+		context.Background(),
+		existingTxn.ID,
+		&UpdateTransactionRequest{Transaction: update},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify the request body contains the transfer payee ID
+	var sentData UpdateTransactionRequest
+	if err := json.Unmarshal(receivedBody, &sentData); err != nil {
+		t.Fatal("failed to unmarshal sent body:", err)
+	}
+
+	if sentData.Transaction.PayeeID.String != "savings-transfer-payee" {
+		t.Errorf("expected payee_id 'savings-transfer-payee', got %s", sentData.Transaction.PayeeID.String)
+	}
+
+	// Verify the existing transaction data was preserved in the request
+	if *sentData.Transaction.Amount != -50000 {
+		t.Errorf("expected amount -50000, got %d", *sentData.Transaction.Amount)
+	}
+
+	if sentData.Transaction.Memo.String != "ATM withdrawal" {
+		t.Errorf("expected memo 'ATM withdrawal', got %s", sentData.Transaction.Memo.String)
+	}
+
+	// Verify response shows it's now a transfer
+	if resp.Data.Transaction.TransferAccountID.String != "savings-account" {
+		t.Errorf("expected transfer_account_id 'savings-account', got %s", resp.Data.Transaction.TransferAccountID.String)
+	}
+}
+
+func TestAccountTransferPayeeIDParsing(t *testing.T) {
+	jsonData := `{
+		"data": {
+			"accounts": [
+				{
+					"id": "account-123",
+					"name": "Checking",
+					"type": "checking",
+					"on_budget": true,
+					"closed": false,
+					"note": null,
+					"balance": 500000,
+					"cleared_balance": 500000,
+					"uncleared_balance": 0,
+					"transfer_payee_id": "payee-456",
+					"direct_import_linked": false,
+					"direct_import_in_error": false,
+					"deleted": false
+				},
+				{
+					"id": "account-789",
+					"name": "Tracking Account",
+					"type": "otherAsset",
+					"on_budget": false,
+					"closed": false,
+					"note": null,
+					"balance": 100000,
+					"cleared_balance": 100000,
+					"uncleared_balance": 0,
+					"transfer_payee_id": null,
+					"direct_import_linked": false,
+					"direct_import_in_error": false,
+					"deleted": false
+				}
+			]
+		}
+	}`
+
+	var resp AccountListResponse
+	if err := json.Unmarshal([]byte(jsonData), &resp); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(resp.Data.Accounts) != 2 {
+		t.Fatalf("expected 2 accounts, got %d", len(resp.Data.Accounts))
+	}
+
+	// First account has transfer_payee_id
+	acct1 := resp.Data.Accounts[0]
+	if !acct1.TransferPayeeID.Valid {
+		t.Error("expected first account to have valid transfer_payee_id")
+	}
+	if acct1.TransferPayeeID.String != "payee-456" {
+		t.Errorf("expected transfer_payee_id 'payee-456', got %s", acct1.TransferPayeeID.String)
+	}
+
+	// Second account has null transfer_payee_id
+	acct2 := resp.Data.Accounts[1]
+	if acct2.TransferPayeeID.Valid {
+		t.Error("expected second account to have invalid (null) transfer_payee_id")
+	}
+}
