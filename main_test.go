@@ -766,6 +766,971 @@ func TestUpdateToTransferIntegration(t *testing.T) {
 	}
 }
 
+func TestGetUser(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"user": {"id": "user-123"}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.GetUser(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/user" {
+		t.Errorf("expected /user, got %s", receivedPath)
+	}
+	if resp.Data.User.ID != "user-123" {
+		t.Errorf("expected user ID user-123, got %s", resp.Data.User.ID)
+	}
+}
+
+func TestGetSettings(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"settings": {"date_format": {"format": "MM/DD/YYYY"}, "currency_format": {"iso_code": "USD", "example_format": "123,456.78", "decimal_digits": 2, "decimal_separator": ".", "symbol_first": true, "group_separator": ",", "currency_symbol": "$", "display_symbol": true}}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").GetSettings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/settings" {
+		t.Errorf("expected /budgets/budget-123/settings, got %s", receivedPath)
+	}
+	if resp.Data.Settings.DateFormat.Format != "MM/DD/YYYY" {
+		t.Errorf("expected date format MM/DD/YYYY, got %s", resp.Data.Settings.DateFormat.Format)
+	}
+	if resp.Data.Settings.CurrencyFormat.ISOCode != "USD" {
+		t.Errorf("expected ISO code USD, got %s", resp.Data.Settings.CurrencyFormat.ISOCode)
+	}
+	if resp.Data.Settings.CurrencyFormat.DecimalDigits != 2 {
+		t.Errorf("expected 2 decimal digits, got %d", resp.Data.Settings.CurrencyFormat.DecimalDigits)
+	}
+	if !resp.Data.Settings.CurrencyFormat.SymbolFirst {
+		t.Errorf("expected symbol_first to be true")
+	}
+}
+
+func TestCreateAccount(t *testing.T) {
+	var receivedMethod, receivedPath string
+	var receivedBody []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = body
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"data": {"account": {"id": "acct-new", "name": "Savings", "type": "savings", "on_budget": true, "closed": false, "note": "", "balance": 100000, "starting_balance": 100000, "deleted": false}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	req := &CreateAccountRequest{
+		Account: &SaveAccount{
+			Name:    "Savings",
+			Type:    "savings",
+			Balance: 100000,
+		},
+	}
+
+	resp, err := client.Budgets("budget-123").CreateAccount(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "POST" {
+		t.Errorf("expected POST, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/accounts" {
+		t.Errorf("expected /budgets/budget-123/accounts, got %s", receivedPath)
+	}
+
+	var sentData CreateAccountRequest
+	if err := json.Unmarshal(receivedBody, &sentData); err != nil {
+		t.Fatal(err)
+	}
+	if sentData.Account.Name != "Savings" {
+		t.Errorf("expected account name Savings, got %s", sentData.Account.Name)
+	}
+	if sentData.Account.Balance != 100000 {
+		t.Errorf("expected balance 100000, got %d", sentData.Account.Balance)
+	}
+	if resp.Data.Account.ID != "acct-new" {
+		t.Errorf("expected account ID acct-new, got %s", resp.Data.Account.ID)
+	}
+}
+
+func TestGetAccount(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"account": {"id": "acct-123", "name": "Checking", "type": "checking", "on_budget": true, "closed": false, "note": "", "balance": 500000, "starting_balance": 0, "deleted": false}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").GetAccount(context.Background(), "acct-123")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/accounts/acct-123" {
+		t.Errorf("expected /budgets/budget-123/accounts/acct-123, got %s", receivedPath)
+	}
+	if resp.Data.Account.ID != "acct-123" {
+		t.Errorf("expected account ID acct-123, got %s", resp.Data.Account.ID)
+	}
+	if resp.Data.Account.Balance != 500000 {
+		t.Errorf("expected balance 500000, got %d", resp.Data.Account.Balance)
+	}
+}
+
+func TestGetCategory(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"category": {"id": "cat-123", "name": "Groceries", "category_group_id": "group-1", "note": "", "hidden": false, "budgeted": 50000, "activity": -30000, "balance": 20000}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").GetCategory(context.Background(), "cat-123")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/categories/cat-123" {
+		t.Errorf("expected /budgets/budget-123/categories/cat-123, got %s", receivedPath)
+	}
+	if resp.Data.Category.ID != "cat-123" {
+		t.Errorf("expected category ID cat-123, got %s", resp.Data.Category.ID)
+	}
+	if resp.Data.Category.Budgeted != 50000 {
+		t.Errorf("expected budgeted 50000, got %d", resp.Data.Category.Budgeted)
+	}
+}
+
+func TestUpdateCategory(t *testing.T) {
+	var receivedMethod, receivedPath string
+	var receivedBody []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = body
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"category": {"id": "cat-123", "name": "Renamed", "category_group_id": "group-1", "note": "updated note", "hidden": false, "budgeted": 0, "activity": 0, "balance": 0}, "server_knowledge": 100}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	req := &UpdateCategoryRequest{
+		Category: &SaveCategory{
+			Name: "Renamed",
+			Note: "updated note",
+		},
+	}
+
+	resp, err := client.Budgets("budget-123").UpdateCategory(context.Background(), "cat-123", req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "PATCH" {
+		t.Errorf("expected PATCH, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/categories/cat-123" {
+		t.Errorf("expected /budgets/budget-123/categories/cat-123, got %s", receivedPath)
+	}
+
+	var sentData UpdateCategoryRequest
+	if err := json.Unmarshal(receivedBody, &sentData); err != nil {
+		t.Fatal(err)
+	}
+	if sentData.Category.Name != "Renamed" {
+		t.Errorf("expected name Renamed, got %s", sentData.Category.Name)
+	}
+	if resp.Data.Category.Name != "Renamed" {
+		t.Errorf("expected response name Renamed, got %s", resp.Data.Category.Name)
+	}
+	if resp.Data.ServerKnowledge != 100 {
+		t.Errorf("expected server knowledge 100, got %d", resp.Data.ServerKnowledge)
+	}
+}
+
+func TestPayees(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"payees": [{"id": "payee-1", "name": "Grocery Store", "transfer_account_id": null, "deleted": false}], "server_knowledge": 50}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").Payees(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/payees" {
+		t.Errorf("expected /budgets/budget-123/payees, got %s", receivedPath)
+	}
+	if len(resp.Data.Payees) != 1 {
+		t.Fatalf("expected 1 payee, got %d", len(resp.Data.Payees))
+	}
+	if resp.Data.Payees[0].Name != "Grocery Store" {
+		t.Errorf("expected payee name Grocery Store, got %s", resp.Data.Payees[0].Name)
+	}
+	if resp.Data.ServerKnowledge != 50 {
+		t.Errorf("expected server knowledge 50, got %d", resp.Data.ServerKnowledge)
+	}
+}
+
+func TestGetPayee(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"payee": {"id": "payee-1", "name": "Grocery Store", "transfer_account_id": null, "deleted": false}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").GetPayee(context.Background(), "payee-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/payees/payee-1" {
+		t.Errorf("expected /budgets/budget-123/payees/payee-1, got %s", receivedPath)
+	}
+	if resp.Data.Payee.ID != "payee-1" {
+		t.Errorf("expected payee ID payee-1, got %s", resp.Data.Payee.ID)
+	}
+}
+
+func TestUpdatePayee(t *testing.T) {
+	var receivedMethod, receivedPath string
+	var receivedBody []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = body
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"payee": {"id": "payee-1", "name": "Updated Store", "transfer_account_id": null, "deleted": false}, "server_knowledge": 75}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	req := &UpdatePayeeRequest{
+		Payee: &SavePayee{Name: "Updated Store"},
+	}
+
+	resp, err := client.Budgets("budget-123").UpdatePayee(context.Background(), "payee-1", req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "PATCH" {
+		t.Errorf("expected PATCH, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/payees/payee-1" {
+		t.Errorf("expected /budgets/budget-123/payees/payee-1, got %s", receivedPath)
+	}
+
+	var sentData UpdatePayeeRequest
+	if err := json.Unmarshal(receivedBody, &sentData); err != nil {
+		t.Fatal(err)
+	}
+	if sentData.Payee.Name != "Updated Store" {
+		t.Errorf("expected payee name Updated Store, got %s", sentData.Payee.Name)
+	}
+	if resp.Data.Payee.Name != "Updated Store" {
+		t.Errorf("expected response payee name Updated Store, got %s", resp.Data.Payee.Name)
+	}
+	if resp.Data.ServerKnowledge != 75 {
+		t.Errorf("expected server knowledge 75, got %d", resp.Data.ServerKnowledge)
+	}
+}
+
+func TestPayeeLocations(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"payee_locations": [{"id": "loc-1", "payee_id": "payee-1", "latitude": "40.7128", "longitude": "-74.0060", "deleted": false}]}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").PayeeLocations(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/payee_locations" {
+		t.Errorf("expected /budgets/budget-123/payee_locations, got %s", receivedPath)
+	}
+	if len(resp.Data.PayeeLocations) != 1 {
+		t.Fatalf("expected 1 location, got %d", len(resp.Data.PayeeLocations))
+	}
+	if resp.Data.PayeeLocations[0].Latitude != "40.7128" {
+		t.Errorf("expected latitude 40.7128, got %s", resp.Data.PayeeLocations[0].Latitude)
+	}
+}
+
+func TestGetPayeeLocation(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"payee_location": {"id": "loc-1", "payee_id": "payee-1", "latitude": "40.7128", "longitude": "-74.0060", "deleted": false}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").GetPayeeLocation(context.Background(), "loc-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/payee_locations/loc-1" {
+		t.Errorf("expected /budgets/budget-123/payee_locations/loc-1, got %s", receivedPath)
+	}
+	if resp.Data.PayeeLocation.ID != "loc-1" {
+		t.Errorf("expected location ID loc-1, got %s", resp.Data.PayeeLocation.ID)
+	}
+	if resp.Data.PayeeLocation.Longitude != "-74.0060" {
+		t.Errorf("expected longitude -74.0060, got %s", resp.Data.PayeeLocation.Longitude)
+	}
+}
+
+func TestPayeeLocationsByPayee(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"payee_locations": [{"id": "loc-1", "payee_id": "payee-1", "latitude": "34.0522", "longitude": "-118.2437", "deleted": false}]}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").PayeeLocationsByPayee(context.Background(), "payee-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/payees/payee-1/payee_locations" {
+		t.Errorf("expected /budgets/budget-123/payees/payee-1/payee_locations, got %s", receivedPath)
+	}
+	if len(resp.Data.PayeeLocations) != 1 {
+		t.Fatalf("expected 1 location, got %d", len(resp.Data.PayeeLocations))
+	}
+	if resp.Data.PayeeLocations[0].PayeeID != "payee-1" {
+		t.Errorf("expected payee ID payee-1, got %s", resp.Data.PayeeLocations[0].PayeeID)
+	}
+}
+
+func TestMonths(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"months": [{"month": "2024-01-01", "note": "", "income": 500000, "budgeted": 400000, "activity": -350000, "to_be_budgeted": 100000, "age_of_money": 30, "deleted": false}], "server_knowledge": 200}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").Months(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/months" {
+		t.Errorf("expected /budgets/budget-123/months, got %s", receivedPath)
+	}
+	if len(resp.Data.Months) != 1 {
+		t.Fatalf("expected 1 month, got %d", len(resp.Data.Months))
+	}
+	if resp.Data.Months[0].Income != 500000 {
+		t.Errorf("expected income 500000, got %d", resp.Data.Months[0].Income)
+	}
+	if *resp.Data.Months[0].AgeOfMoney != 30 {
+		t.Errorf("expected age of money 30, got %d", *resp.Data.Months[0].AgeOfMoney)
+	}
+}
+
+func TestGetMonth(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"month": {"month": "2024-01-01", "note": "January", "income": 500000, "budgeted": 400000, "activity": -350000, "to_be_budgeted": 100000, "age_of_money": 30, "deleted": false, "categories": [{"id": "cat-1", "name": "Groceries", "category_group_id": "group-1", "budgeted": 50000, "activity": -30000, "balance": 20000}]}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").GetMonth(context.Background(), "2024-01-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/months/2024-01-01" {
+		t.Errorf("expected /budgets/budget-123/months/2024-01-01, got %s", receivedPath)
+	}
+	if resp.Data.Month.Note != "January" {
+		t.Errorf("expected note January, got %s", resp.Data.Month.Note)
+	}
+	if len(resp.Data.Month.Categories) != 1 {
+		t.Fatalf("expected 1 category, got %d", len(resp.Data.Month.Categories))
+	}
+	if resp.Data.Month.Categories[0].Name != "Groceries" {
+		t.Errorf("expected category name Groceries, got %s", resp.Data.Month.Categories[0].Name)
+	}
+}
+
+func TestGetTransaction(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"transaction": {"id": "txn-123", "account_id": "acct-1", "account_name": "Cash", "date": "2024-01-15", "amount": -5000, "memo": "Coffee", "cleared": "cleared", "approved": true, "flag_color": null, "payee_name": "Cafe", "category_name": "Dining Out", "subtransactions": [], "deleted": false}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").GetTransaction(context.Background(), "txn-123")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/transactions/txn-123" {
+		t.Errorf("expected /budgets/budget-123/transactions/txn-123, got %s", receivedPath)
+	}
+	if resp.Data.Transaction.ID != "txn-123" {
+		t.Errorf("expected transaction ID txn-123, got %s", resp.Data.Transaction.ID)
+	}
+	if resp.Data.Transaction.Amount != -5000 {
+		t.Errorf("expected amount -5000, got %d", resp.Data.Transaction.Amount)
+	}
+}
+
+func TestUpdateTransactions(t *testing.T) {
+	var receivedMethod, receivedPath string
+	var receivedBody []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = body
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"transaction_ids": ["txn-1", "txn-2"], "server_knowledge": 300}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	amount1 := int64(-1000)
+	amount2 := int64(-2000)
+	req := &UpdateTransactionsRequest{
+		Transactions: []*UpdateTransaction{
+			{Amount: &amount1, Date: Date(time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC))},
+			{Amount: &amount2, Date: Date(time.Date(2024, 1, 16, 0, 0, 0, 0, time.UTC))},
+		},
+	}
+
+	resp, err := client.Budgets("budget-123").UpdateTransactions(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "PATCH" {
+		t.Errorf("expected PATCH, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/transactions" {
+		t.Errorf("expected /budgets/budget-123/transactions, got %s", receivedPath)
+	}
+
+	var sentData UpdateTransactionsRequest
+	if err := json.Unmarshal(receivedBody, &sentData); err != nil {
+		t.Fatal(err)
+	}
+	if len(sentData.Transactions) != 2 {
+		t.Errorf("expected 2 transactions in request, got %d", len(sentData.Transactions))
+	}
+	if len(resp.Data.TransactionIDs) != 2 {
+		t.Errorf("expected 2 transaction IDs, got %d", len(resp.Data.TransactionIDs))
+	}
+	if resp.Data.ServerKnowledge != 300 {
+		t.Errorf("expected server knowledge 300, got %d", resp.Data.ServerKnowledge)
+	}
+}
+
+func TestImportTransactions(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"data": {"transaction_ids": ["import-1", "import-2"]}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").ImportTransactions(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "POST" {
+		t.Errorf("expected POST, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/transactions/import" {
+		t.Errorf("expected /budgets/budget-123/transactions/import, got %s", receivedPath)
+	}
+	if len(resp.Data.TransactionIDs) != 2 {
+		t.Errorf("expected 2 transaction IDs, got %d", len(resp.Data.TransactionIDs))
+	}
+}
+
+func TestAccountTransactions(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"transactions": [{"id": "txn-1", "account_id": "acct-1", "account_name": "Checking", "date": "2024-01-15", "amount": -5000, "memo": "", "cleared": "cleared", "approved": true, "flag_color": null, "payee_name": "Store", "subtransactions": [], "deleted": false}]}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").AccountTransactions(context.Background(), "acct-1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/accounts/acct-1/transactions" {
+		t.Errorf("expected /budgets/budget-123/accounts/acct-1/transactions, got %s", receivedPath)
+	}
+	if len(resp.Data.Transactions) != 1 {
+		t.Fatalf("expected 1 transaction, got %d", len(resp.Data.Transactions))
+	}
+	if resp.Data.Transactions[0].AccountID != "acct-1" {
+		t.Errorf("expected account ID acct-1, got %s", resp.Data.Transactions[0].AccountID)
+	}
+}
+
+func TestCategoryTransactions(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"transactions": [{"id": "txn-1", "date": "2024-01-15", "amount": -5000, "memo": "", "cleared": "cleared", "approved": true, "flag_color": null, "account_id": "acct-1", "account_name": "Checking", "payee_name": "Store", "category_name": "Groceries", "type": "transaction", "parent_transaction_id": null, "subtransactions": [], "deleted": false}], "server_knowledge": 100}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").CategoryTransactions(context.Background(), "cat-1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/categories/cat-1/transactions" {
+		t.Errorf("expected /budgets/budget-123/categories/cat-1/transactions, got %s", receivedPath)
+	}
+	if len(resp.Data.Transactions) != 1 {
+		t.Fatalf("expected 1 transaction, got %d", len(resp.Data.Transactions))
+	}
+	if resp.Data.Transactions[0].Type != "transaction" {
+		t.Errorf("expected type transaction, got %s", resp.Data.Transactions[0].Type)
+	}
+}
+
+func TestPayeeTransactions(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"transactions": [{"id": "txn-1", "date": "2024-01-15", "amount": -5000, "memo": "", "cleared": "cleared", "approved": true, "flag_color": null, "account_id": "acct-1", "account_name": "Checking", "payee_name": "Store", "category_name": "Groceries", "type": "transaction", "parent_transaction_id": null, "subtransactions": [], "deleted": false}], "server_knowledge": 100}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").PayeeTransactions(context.Background(), "payee-1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/payees/payee-1/transactions" {
+		t.Errorf("expected /budgets/budget-123/payees/payee-1/transactions, got %s", receivedPath)
+	}
+	if len(resp.Data.Transactions) != 1 {
+		t.Fatalf("expected 1 transaction, got %d", len(resp.Data.Transactions))
+	}
+	if resp.Data.Transactions[0].PayeeName != "Store" {
+		t.Errorf("expected payee name Store, got %s", resp.Data.Transactions[0].PayeeName)
+	}
+}
+
+func TestMonthTransactions(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"transactions": [{"id": "txn-1", "date": "2024-01-15", "amount": -5000, "memo": "", "cleared": "cleared", "approved": true, "flag_color": null, "account_id": "acct-1", "account_name": "Checking", "payee_name": "Store", "category_name": "Groceries", "type": "transaction", "parent_transaction_id": null, "subtransactions": [], "deleted": false}], "server_knowledge": 100}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").MonthTransactions(context.Background(), "2024-01-01", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/months/2024-01-01/transactions" {
+		t.Errorf("expected /budgets/budget-123/months/2024-01-01/transactions, got %s", receivedPath)
+	}
+	if len(resp.Data.Transactions) != 1 {
+		t.Fatalf("expected 1 transaction, got %d", len(resp.Data.Transactions))
+	}
+}
+
+func TestCreateScheduledTransaction(t *testing.T) {
+	var receivedMethod, receivedPath string
+	var receivedBody []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = body
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"data": {"scheduled_transaction": {"id": "st-new", "account_id": "acct-1", "account_name": "Checking", "date_first": "2024-02-01", "date_next": "2024-02-01", "frequency": "monthly", "amount": -50000, "memo": "Rent", "flag_color": null, "payee_name": "Landlord", "cleared": "uncleared", "approved": false, "deleted": false, "subtransactions": []}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	amount := int64(-50000)
+	req := &CreateScheduledTransactionRequest{
+		ScheduledTransaction: &SaveScheduledTransaction{
+			AccountID: "acct-1",
+			Date:      Date(time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)),
+			Amount:    &amount,
+			Frequency: "monthly",
+			Memo:      types.NullString{String: "Rent", Valid: true},
+		},
+	}
+
+	resp, err := client.Budgets("budget-123").CreateScheduledTransaction(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "POST" {
+		t.Errorf("expected POST, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/scheduled_transactions" {
+		t.Errorf("expected /budgets/budget-123/scheduled_transactions, got %s", receivedPath)
+	}
+
+	var sentData CreateScheduledTransactionRequest
+	if err := json.Unmarshal(receivedBody, &sentData); err != nil {
+		t.Fatal(err)
+	}
+	if sentData.ScheduledTransaction.AccountID != "acct-1" {
+		t.Errorf("expected account ID acct-1, got %s", sentData.ScheduledTransaction.AccountID)
+	}
+	if resp.Data.ScheduledTransaction.ID != "st-new" {
+		t.Errorf("expected scheduled transaction ID st-new, got %s", resp.Data.ScheduledTransaction.ID)
+	}
+	if resp.Data.ScheduledTransaction.Frequency != "monthly" {
+		t.Errorf("expected frequency monthly, got %s", resp.Data.ScheduledTransaction.Frequency)
+	}
+}
+
+func TestGetScheduledTransaction(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"scheduled_transaction": {"id": "st-123", "account_id": "acct-1", "account_name": "Checking", "date_first": "2024-02-01", "date_next": "2024-03-01", "frequency": "monthly", "amount": -50000, "memo": "Rent", "flag_color": null, "payee_name": "Landlord", "cleared": "uncleared", "approved": false, "deleted": false, "subtransactions": []}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").GetScheduledTransaction(context.Background(), "st-123")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/scheduled_transactions/st-123" {
+		t.Errorf("expected /budgets/budget-123/scheduled_transactions/st-123, got %s", receivedPath)
+	}
+	if resp.Data.ScheduledTransaction.ID != "st-123" {
+		t.Errorf("expected ID st-123, got %s", resp.Data.ScheduledTransaction.ID)
+	}
+	if resp.Data.ScheduledTransaction.Amount != -50000 {
+		t.Errorf("expected amount -50000, got %d", resp.Data.ScheduledTransaction.Amount)
+	}
+}
+
+func TestUpdateScheduledTransaction(t *testing.T) {
+	var receivedMethod, receivedPath string
+	var receivedBody []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = body
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"scheduled_transaction": {"id": "st-123", "account_id": "acct-1", "account_name": "Checking", "date_first": "2024-02-01", "date_next": "2024-03-01", "frequency": "monthly", "amount": -60000, "memo": "Updated Rent", "flag_color": null, "payee_name": "Landlord", "cleared": "uncleared", "approved": false, "deleted": false, "subtransactions": []}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	amount := int64(-60000)
+	req := &UpdateScheduledTransactionRequest{
+		ScheduledTransaction: &SaveScheduledTransaction{
+			AccountID: "acct-1",
+			Date:      Date(time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)),
+			Amount:    &amount,
+			Memo:      types.NullString{String: "Updated Rent", Valid: true},
+		},
+	}
+
+	resp, err := client.Budgets("budget-123").UpdateScheduledTransaction(context.Background(), "st-123", req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "PUT" {
+		t.Errorf("expected PUT, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/scheduled_transactions/st-123" {
+		t.Errorf("expected /budgets/budget-123/scheduled_transactions/st-123, got %s", receivedPath)
+	}
+
+	var sentData UpdateScheduledTransactionRequest
+	if err := json.Unmarshal(receivedBody, &sentData); err != nil {
+		t.Fatal(err)
+	}
+	if *sentData.ScheduledTransaction.Amount != -60000 {
+		t.Errorf("expected amount -60000, got %d", *sentData.ScheduledTransaction.Amount)
+	}
+	if resp.Data.ScheduledTransaction.Amount != -60000 {
+		t.Errorf("expected response amount -60000, got %d", resp.Data.ScheduledTransaction.Amount)
+	}
+}
+
+func TestDeleteScheduledTransaction(t *testing.T) {
+	var receivedMethod, receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"scheduled_transaction": {"id": "st-123", "account_id": "acct-1", "account_name": "Checking", "date_first": "2024-02-01", "date_next": "2024-03-01", "frequency": "monthly", "amount": -50000, "memo": "Rent", "flag_color": null, "payee_name": "Landlord", "cleared": "uncleared", "approved": false, "deleted": true, "subtransactions": []}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Budgets("budget-123").DeleteScheduledTransaction(context.Background(), "st-123")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "DELETE" {
+		t.Errorf("expected DELETE, got %s", receivedMethod)
+	}
+	if receivedPath != "/budgets/budget-123/scheduled_transactions/st-123" {
+		t.Errorf("expected /budgets/budget-123/scheduled_transactions/st-123, got %s", receivedPath)
+	}
+	if !resp.Data.ScheduledTransaction.Deleted {
+		t.Errorf("expected scheduled transaction to be marked as deleted")
+	}
+	if resp.Data.ScheduledTransaction.ID != "st-123" {
+		t.Errorf("expected ID st-123, got %s", resp.Data.ScheduledTransaction.ID)
+	}
+}
+
 func TestAccountTransferPayeeIDParsing(t *testing.T) {
 	jsonData := `{
 		"data": {

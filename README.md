@@ -79,6 +79,12 @@ time of payment, not at the time the money is spent.
 Pass the --month flag to filter by a given month. The flag accepts arguments in
 the form of 'Jan 2006', e.g. --month='Aug 2019'.
 
+### OpenAPI Spec
+
+The YNAB OpenAPI spec is available at
+https://api.ynab.com/papi/open_api_spec.yaml. A local copy is kept at
+`open_api_spec.yaml`. Run `make update-spec` to refresh it.
+
 ### Disclaimer
 
 I spot checked the results against my account, and they appeared to be accurate.
