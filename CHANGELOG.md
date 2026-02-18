@@ -1,10 +1,58 @@
 # Changelog & Upgrade Guide
 
-### v1.1.0
+### v1.5.0 (2026-02-18)
+
+Add endpoints covering most of the remaining YNAB API surface.
+
+New BudgetService methods:
+
+- `GetBudget` - full budget export with all months and categories
+- `GetSettings` - budget date/currency format settings
+- `GetAccount`, `CreateAccount` - single account operations
+- `GetCategory`, `UpdateCategory` - single category operations
+- `GetMonthCategory`, `UpdateMonthCategory` - per-month category budgeting
+- `Payees`, `GetPayee`, `UpdatePayee` - payee operations
+- `PayeeLocations`, `GetPayeeLocation`, `PayeeLocationsByPayee` - payee location operations
+- `Months`, `GetMonth` - budget month operations
+- `GetTransaction`, `UpdateTransactions` (bulk), `ImportTransactions` - additional transaction operations
+- `AccountTransactions`, `CategoryTransactions`, `PayeeTransactions`, `MonthTransactions` - filtered transaction lists
+- `GetScheduledTransaction`, `CreateScheduledTransaction`, `UpdateScheduledTransaction`, `DeleteScheduledTransaction` - scheduled transaction CRUD
+
+New Client method:
+
+- `GetUser` - get the authenticated user
+
+New types: `MonthDetail`, `MonthSummary`, `BudgetDetail`, `HybridTransaction`, `Payee`, `PayeeLocation`, `BudgetSettings`, `DateFormat`, `CurrencyFormat`, `User`, `SaveScheduledTransaction`, and related request/response wrappers.
+
+Other changes:
+
+- Add `Balance` field to `Category`
+- Add `PayeeID` field to `Transaction`
+- Add doc comments to struct fields throughout
+- Fix `MakeRequest` to set Content-Type for PATCH requests
+
+### v1.4.0 (2026-01-16)
+
+- Add `DeleteTransaction` endpoint
+- Add `NewTransferTransaction` and `UpdateTransactionToTransfer` helpers for creating and converting transfers
+- Add `TransferAccountID` field to `NewTransaction`
+- Add `TransferPayeeID` field to `Account`
+- Add `Error` type for client-side errors
+- Change `Transaction.Cleared` from `string` to `ClearedStatus`
+
+### v1.3.0 (2025-08-07)
+
+Make the User-Agent header modifiable via `Client.UserAgent`.
+
+### v1.2.0 (2025-07-22)
+
+Change `Date` to a non-optional (non-pointer) field in transaction types.
+
+### v1.1.0 (2025-07-22)
 
 Add CreateTransaction endpoint.
 
-### v1.0.0
+### v1.0.0 (2025-07-22)
 
 The main change is that BudgetService now requires a budget ID at creation time, simplifying the API by removing the need to pass budget IDs to individual methods.
 
