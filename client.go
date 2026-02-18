@@ -249,13 +249,14 @@ type Transaction struct {
 	Amount                int64            // The transaction amount in milliunits format
 	Approved              bool             // Whether or not the transaction is approved
 	CategoryID            types.NullString `json:"category_id"`
-	CategoryName          types.NullString `json:"category_name"` // If a split transaction, this will be 'Split'.
-	Cleared               ClearedStatus
-	Date                  Date // The transaction date in ISO format (e.g. 2016-12-01)
-	Deleted               bool
-	FlagColor             FlagColor `json:"flag_color"`
-	ID                    string    `json:"id"`
+	CategoryName          types.NullString `json:"category_name"` // The name of the category. If a split transaction, this will be 'Split'.
+	Cleared               ClearedStatus    // The cleared status of the transaction
+	Date                  Date             // The transaction date in ISO format (e.g. 2016-12-01)
+	Deleted               bool             // Whether or not the transaction has been deleted. Deleted transactions will only be included in delta requests.
+	FlagColor             FlagColor        `json:"flag_color"` // The transaction flag
+	ID                    string           `json:"id"`
 	Memo                  string
+	PayeeID               types.NullString `json:"payee_id"`
 	PayeeName             string           `json:"payee_name"`
 	TransferAccountID     types.NullString `json:"transfer_account_id"`     // If a transfer transaction, the account to which it transfers
 	TransferTransactionID types.NullString `json:"transfer_transaction_id"` // If a transfer transaction, the id of transaction on the other side of the transfer
