@@ -121,9 +121,18 @@ type Category struct {
 	CategoryGroupID string `json:"category_group_id"`
 	Note            string
 	Hidden          bool
+	Deleted         bool
 	Budgeted        int64 // Budgeted amount in milliunits format
 	Activity        int64 // Activity amount in milliunits format
 	Balance         int64 // Balance in milliunits format
+
+	GoalType               types.NullString `json:"goal_type"`                // The type of goal, or null. TB=Target Category Balance, TBD=Target Category Balance by Date, MF=Monthly Funding, NEED=Plan Your Spending, DEBT=Debt Payoff
+	GoalTarget             *int64           `json:"goal_target"`              // The goal target amount in milliunits
+	GoalPercentageComplete *int32           `json:"goal_percentage_complete"` // The percentage completed of the goal
+	GoalMonthsToBudget     *int32           `json:"goal_months_to_budget"`    // The number of months remaining until the goal is completed
+	GoalUnderFunded        *int64           `json:"goal_under_funded"`        // The amount of funding still needed in milliunits
+	GoalOverallFunded      *int64           `json:"goal_overall_funded"`      // The total amount funded towards the goal in milliunits
+	GoalOverallLeft        *int64           `json:"goal_overall_left"`        // The amount still left to fund the goal in milliunits
 }
 
 // UpdateMonthCategoryRequest is the request body for updating a category's budget for a month.

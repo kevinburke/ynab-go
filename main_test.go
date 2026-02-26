@@ -1731,6 +1731,121 @@ func TestDeleteScheduledTransaction(t *testing.T) {
 	}
 }
 
+func TestCategoryGoalFieldsParsing(t *testing.T) {
+	jsonData := `{
+		"data": {
+			"category": {
+				"id": "cat-goal-1",
+				"name": "Internet",
+				"category_group_id": "group-bills",
+				"note": "",
+				"hidden": false,
+				"deleted": false,
+				"budgeted": 50000,
+				"activity": -49990,
+				"balance": 10,
+				"goal_type": "NEED",
+				"goal_target": 50000,
+				"goal_percentage_complete": 100,
+				"goal_months_to_budget": 0,
+				"goal_under_funded": 0,
+				"goal_overall_funded": 50000,
+				"goal_overall_left": 0
+			}
+		}
+	}`
+
+	var resp CategoryResponse
+	if err := json.Unmarshal([]byte(jsonData), &resp); err != nil {
+		t.Fatal(err)
+	}
+
+	cat := resp.Data.Category
+	if cat.ID != "cat-goal-1" {
+		t.Errorf("expected ID cat-goal-1, got %s", cat.ID)
+	}
+	if !cat.GoalType.Valid || cat.GoalType.String != "NEED" {
+		t.Errorf("expected goal_type NEED, got valid=%v string=%q", cat.GoalType.Valid, cat.GoalType.String)
+	}
+	if cat.GoalTarget == nil || *cat.GoalTarget != 50000 {
+		t.Errorf("expected goal_target 50000, got %v", cat.GoalTarget)
+	}
+	if cat.GoalPercentageComplete == nil || *cat.GoalPercentageComplete != 100 {
+		t.Errorf("expected goal_percentage_complete 100, got %v", cat.GoalPercentageComplete)
+	}
+	if cat.GoalMonthsToBudget == nil || *cat.GoalMonthsToBudget != 0 {
+		t.Errorf("expected goal_months_to_budget 0, got %v", cat.GoalMonthsToBudget)
+	}
+	if cat.GoalUnderFunded == nil || *cat.GoalUnderFunded != 0 {
+		t.Errorf("expected goal_under_funded 0, got %v", cat.GoalUnderFunded)
+	}
+	if cat.GoalOverallFunded == nil || *cat.GoalOverallFunded != 50000 {
+		t.Errorf("expected goal_overall_funded 50000, got %v", cat.GoalOverallFunded)
+	}
+	if cat.GoalOverallLeft == nil || *cat.GoalOverallLeft != 0 {
+		t.Errorf("expected goal_overall_left 0, got %v", cat.GoalOverallLeft)
+	}
+	if cat.Deleted {
+		t.Error("expected deleted to be false")
+	}
+}
+
+func TestCategoryGoalFieldsNull(t *testing.T) {
+	jsonData := `{
+		"data": {
+			"category": {
+				"id": "cat-nogoal-1",
+				"name": "Fun Money",
+				"category_group_id": "group-fun",
+				"note": "",
+				"hidden": false,
+				"deleted": false,
+				"budgeted": 10000,
+				"activity": -5000,
+				"balance": 5000,
+				"goal_type": null,
+				"goal_target": null,
+				"goal_percentage_complete": null,
+				"goal_months_to_budget": null,
+				"goal_under_funded": null,
+				"goal_overall_funded": null,
+				"goal_overall_left": null
+			}
+		}
+	}`
+
+	var resp CategoryResponse
+	if err := json.Unmarshal([]byte(jsonData), &resp); err != nil {
+		t.Fatal(err)
+	}
+
+	cat := resp.Data.Category
+	if cat.ID != "cat-nogoal-1" {
+		t.Errorf("expected ID cat-nogoal-1, got %s", cat.ID)
+	}
+	if cat.GoalType.Valid {
+		t.Errorf("expected goal_type to be null, got %q", cat.GoalType.String)
+	}
+	if cat.GoalTarget != nil {
+		t.Errorf("expected goal_target to be nil, got %v", *cat.GoalTarget)
+	}
+	if cat.GoalPercentageComplete != nil {
+		t.Errorf("expected goal_percentage_complete to be nil, got %v", *cat.GoalPercentageComplete)
+	}
+	if cat.GoalMonthsToBudget != nil {
+		t.Errorf("expected goal_months_to_budget to be nil, got %v", *cat.GoalMonthsToBudget)
+	}
+	if cat.GoalUnderFunded != nil {
+		t.Errorf("expected goal_under_funded to be nil, got %v", *cat.GoalUnderFunded)
+	}
+	if cat.GoalOverallFunded != nil {
+		t.Errorf("expected goal_overall_funded to be nil, got %v", *cat.GoalOverallFunded)
+	}
+	if cat.GoalOverallLeft != nil {
+		t.Errorf("expected goal_overall_left to be nil, got %v", *cat.GoalOverallLeft)
+	}
+}
+
 func TestAccountTransferPayeeIDParsing(t *testing.T) {
 	jsonData := `{
 		"data": {
