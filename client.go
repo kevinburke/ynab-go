@@ -126,6 +126,8 @@ type Category struct {
 	Activity        int64 // Activity amount in milliunits format
 	Balance         int64 // Balance in milliunits format
 
+	CategoryGroupName string `json:"category_group_name"` // The name of the category group
+
 	GoalType               types.NullString `json:"goal_type"`                // The type of goal, or null. TB=Target Category Balance, TBD=Target Category Balance by Date, MF=Monthly Funding, NEED=Plan Your Spending, DEBT=Debt Payoff
 	GoalTarget             *int64           `json:"goal_target"`              // The goal target amount in milliunits
 	GoalPercentageComplete *int32           `json:"goal_percentage_complete"` // The percentage completed of the goal
@@ -133,6 +135,13 @@ type Category struct {
 	GoalUnderFunded        *int64           `json:"goal_under_funded"`        // The amount of funding still needed in milliunits
 	GoalOverallFunded      *int64           `json:"goal_overall_funded"`      // The total amount funded towards the goal in milliunits
 	GoalOverallLeft        *int64           `json:"goal_overall_left"`        // The amount still left to fund the goal in milliunits
+	GoalNeedsWholeAmount   *bool            `json:"goal_needs_whole_amount"`  // For NEED goals: true=Set Aside, false=Refill. Null for other goal types
+	GoalDay                *int32           `json:"goal_day"`                 // Day offset for the goal's due date
+	GoalCadence            *int32           `json:"goal_cadence"`             // The goal cadence (0-14)
+	GoalCadenceFrequency   *int32           `json:"goal_cadence_frequency"`   // The goal cadence frequency
+	GoalCreationMonth      types.NullString `json:"goal_creation_month"`      // The month a goal was created
+	GoalTargetMonth        types.NullString `json:"goal_target_month"`        // The original target month for the goal to be completed
+	GoalSnoozedAt          types.NullString `json:"goal_snoozed_at"`          // The date/time the goal was snoozed
 }
 
 // UpdateMonthCategoryRequest is the request body for updating a category's budget for a month.
@@ -234,43 +243,49 @@ func (nt NullDate) MarshalJSON() ([]byte, error) {
 }
 
 type ScheduledTransaction struct {
-	AccountID         string `json:"account_id"`
-	AccountName       string `json:"account_name"`
-	Amount            int64  // The scheduled transaction amount in milliunits format
-	Approved          bool
+	AccountID         string           `json:"account_id"`
+	AccountName       string           `json:"account_name"`
+	Amount            int64            // The scheduled transaction amount in milliunits format
+	CategoryID        types.NullString `json:"category_id"`
 	CategoryName      types.NullString `json:"category_name"`
-	Cleared           string
-	DateFirst         Date `json:"date_first"` // The first date for which the Scheduled Transaction was scheduled.
-	DateNext          Date `json:"date_next"`  // The next date for which the Scheduled Transaction is scheduled.
+	DateFirst         Date             `json:"date_first"` // The first date for which the Scheduled Transaction was scheduled.
+	DateNext          Date             `json:"date_next"`  // The next date for which the Scheduled Transaction is scheduled.
 	Deleted           bool
-	FlagColor         FlagColor `json:"flag_color"`
+	FlagColor         FlagColor        `json:"flag_color"`
+	FlagName          types.NullString `json:"flag_name"` // The customized name of a transaction flag
 	Frequency         string
 	ID                string `json:"id"`
 	Memo              string
+	PayeeID           types.NullString `json:"payee_id"`
 	PayeeName         string           `json:"payee_name"`
 	TransferAccountID types.NullString `json:"transfer_account_id"` // If a transfer, the account_id which the scheduled transaction transfers to
 	Subtransactions   []Transaction    `json:"subtransactions"`
 }
 
 type Transaction struct {
-	AccountID             string           `json:"account_id"`
-	AccountName           string           `json:"account_name"`
-	Amount                int64            // The transaction amount in milliunits format
-	Approved              bool             // Whether or not the transaction is approved
-	CategoryID            types.NullString `json:"category_id"`
-	CategoryName          types.NullString `json:"category_name"` // The name of the category. If a split transaction, this will be 'Split'.
-	Cleared               ClearedStatus    // The cleared status of the transaction
-	Date                  Date             // The transaction date in ISO format (e.g. 2016-12-01)
-	Deleted               bool             // Whether or not the transaction has been deleted. Deleted transactions will only be included in delta requests.
-	FlagColor             FlagColor        `json:"flag_color"` // The transaction flag
-	ID                    string           `json:"id"`
-	Memo                  string
-	PayeeID               types.NullString `json:"payee_id"`
-	PayeeName             string           `json:"payee_name"`
-	TransferAccountID     types.NullString `json:"transfer_account_id"`     // If a transfer transaction, the account to which it transfers
-	TransferTransactionID types.NullString `json:"transfer_transaction_id"` // If a transfer transaction, the id of transaction on the other side of the transfer
-	MatchedTransactionID  types.NullString `json:"matched_transaction_id"`  // If transaction is matched, the id of the matched transaction
-	Subtransactions       []Transaction    `json:"subtransactions"`         // If a split transaction, the subtransactions.
+	AccountID               string           `json:"account_id"`
+	AccountName             string           `json:"account_name"`
+	Amount                  int64            // The transaction amount in milliunits format
+	Approved                bool             // Whether or not the transaction is approved
+	CategoryID              types.NullString `json:"category_id"`
+	CategoryName            types.NullString `json:"category_name"` // The name of the category. If a split transaction, this will be 'Split'.
+	Cleared                 ClearedStatus    // The cleared status of the transaction
+	Date                    Date             // The transaction date in ISO format (e.g. 2016-12-01)
+	DebtTransactionType     types.NullString `json:"debt_transaction_type"` // If a debt/loan account transaction, the type of transaction
+	Deleted                 bool             // Whether or not the transaction has been deleted. Deleted transactions will only be included in delta requests.
+	FlagColor               FlagColor        `json:"flag_color"` // The transaction flag
+	FlagName                types.NullString `json:"flag_name"`  // The customized name of a transaction flag
+	ID                      string           `json:"id"`
+	ImportID                types.NullString `json:"import_id"`                  // If the transaction was imported, a unique (by account) import identifier
+	ImportPayeeName         types.NullString `json:"import_payee_name"`          // If the transaction was imported, the payee name that was used when importing and before applying any payee rename rules
+	ImportPayeeNameOriginal types.NullString `json:"import_payee_name_original"` // If the transaction was imported, the original payee name as it appeared on the statement
+	Memo                    string
+	PayeeID                 types.NullString `json:"payee_id"`
+	PayeeName               string           `json:"payee_name"`
+	TransferAccountID       types.NullString `json:"transfer_account_id"`     // If a transfer transaction, the account to which it transfers
+	TransferTransactionID   types.NullString `json:"transfer_transaction_id"` // If a transfer transaction, the id of transaction on the other side of the transfer
+	MatchedTransactionID    types.NullString `json:"matched_transaction_id"`  // If transaction is matched, the id of the matched transaction
+	Subtransactions         []Transaction    `json:"subtransactions"`         // If a split transaction, the subtransactions.
 }
 
 // ClearedStatus represents the cleared status of a transaction
@@ -317,16 +332,24 @@ func (fc FlagColor) MarshalJSON() ([]byte, error) {
 }
 
 type Account struct {
-	ID              string
-	Name            string
-	Type            string
-	OnBudget        bool `json:"on_budget"` // Whether this account is on budget or not
-	Closed          bool // Whether this account is closed or not
-	Note            string
-	Balance         int64 // The current balance of the account in milliunits format
-	StartingBalance int64 `json:"starting_balance"`
-	Deleted         bool
-	TransferPayeeID types.NullString `json:"transfer_payee_id"` // The payee id which should be used when transferring to this account
+	ID                  string
+	Name                string
+	Type                string
+	OnBudget            bool `json:"on_budget"` // Whether this account is on budget or not
+	Closed              bool // Whether this account is closed or not
+	Note                string
+	Balance             int64 // The current balance of the account in milliunits format
+	ClearedBalance      int64 `json:"cleared_balance"`   // The current cleared balance of the account in milliunits format
+	UnclearedBalance    int64 `json:"uncleared_balance"` // The current uncleared balance of the account in milliunits format
+	StartingBalance     int64 `json:"starting_balance"`
+	Deleted             bool
+	TransferPayeeID     types.NullString `json:"transfer_payee_id"`      // The payee id which should be used when transferring to this account
+	DirectImportLinked  bool             `json:"direct_import_linked"`   // Whether or not the account is linked to a financial institution for automatic transaction import
+	DirectImportInError bool             `json:"direct_import_in_error"` // If an account linked to a financial institution and the linked connection is not in a healthy state, this will be true
+	LastReconciledAt    types.NullString `json:"last_reconciled_at"`     // A date/time specifying when the account was last reconciled
+	DebtInterestRates   map[string]int64 `json:"debt_interest_rates"`    // Loan account periodic interest rate values
+	DebtMinimumPayments map[string]int64 `json:"debt_minimum_payments"`  // Loan account periodic minimum payment values
+	DebtEscrowAmounts   map[string]int64 `json:"debt_escrow_amounts"`    // Loan account periodic escrow amount values
 }
 
 func (a Account) CashBacked() bool {
@@ -342,8 +365,13 @@ type AccountListWrapper struct {
 }
 
 type Budget struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID             string      `json:"id"`
+	Name           string      `json:"name"`
+	LastModifiedOn string      `json:"last_modified_on"` // The last time any changes were made to the budget from either a web or mobile client
+	FirstMonth     string      `json:"first_month"`      // The earliest budget month
+	LastMonth      string      `json:"last_month"`       // The latest budget month
+	DateFormat     interface{} `json:"date_format"`
+	CurrencyFormat interface{} `json:"currency_format"`
 }
 
 type BudgetListResponse struct {
@@ -369,14 +397,23 @@ type MonthDetail struct {
 
 // BudgetDetail represents a full budget export with all related entities.
 type BudgetDetail struct {
-	ID             string         `json:"id"`
-	Name           string         `json:"name"`
-	LastModifiedOn string         `json:"last_modified_on"` // The last time any changes were made to the budget from either a web or mobile client
-	DateFormat     interface{}    `json:"date_format"`
-	CurrencyFormat interface{}    `json:"currency_format"`
-	Accounts       []*Account     `json:"accounts"`
-	Categories     []*Category    `json:"categories"`
-	Months         []*MonthDetail `json:"months"`
+	ID                       string                  `json:"id"`
+	Name                     string                  `json:"name"`
+	LastModifiedOn           string                  `json:"last_modified_on"` // The last time any changes were made to the budget from either a web or mobile client
+	FirstMonth               string                  `json:"first_month"`      // The earliest budget month
+	LastMonth                string                  `json:"last_month"`       // The latest budget month
+	DateFormat               interface{}             `json:"date_format"`
+	CurrencyFormat           interface{}             `json:"currency_format"`
+	Accounts                 []*Account              `json:"accounts"`
+	Payees                   []*Payee                `json:"payees"`
+	PayeeLocations           []*PayeeLocation        `json:"payee_locations"`
+	CategoryGroups           []*CategoryGroup        `json:"category_groups"`
+	Categories               []*Category             `json:"categories"`
+	Months                   []*MonthDetail          `json:"months"`
+	Transactions             []*Transaction          `json:"transactions"`
+	Subtransactions          []*Transaction          `json:"subtransactions"`
+	ScheduledTransactions    []*ScheduledTransaction `json:"scheduled_transactions"`
+	ScheduledSubtransactions []*ScheduledTransaction `json:"scheduled_subtransactions"`
 }
 
 // BudgetDetailResponse wraps the budget detail response
@@ -658,26 +695,31 @@ type MonthDetailResponse struct {
 // HybridTransaction represents a transaction that may be either a regular
 // transaction or a subtransaction, returned by payee/category/month transaction endpoints.
 type HybridTransaction struct {
-	ID                    string           `json:"id"`
-	Date                  Date             `json:"date"`   // The transaction date in ISO format (e.g. 2016-12-01)
-	Amount                int64            `json:"amount"` // The transaction amount in milliunits format
-	Memo                  string           `json:"memo"`
-	Cleared               ClearedStatus    `json:"cleared"`
-	Approved              bool             `json:"approved"` // Whether or not the transaction is approved
-	FlagColor             FlagColor        `json:"flag_color"`
-	AccountID             string           `json:"account_id"`
-	AccountName           string           `json:"account_name"`
-	PayeeID               types.NullString `json:"payee_id"`
-	PayeeName             string           `json:"payee_name"`
-	CategoryID            types.NullString `json:"category_id"`
-	CategoryName          types.NullString `json:"category_name"`           // If a split transaction, this will be 'Split'.
-	TransferAccountID     types.NullString `json:"transfer_account_id"`     // If a transfer transaction, the account to which it transfers
-	TransferTransactionID types.NullString `json:"transfer_transaction_id"` // If a transfer transaction, the id of transaction on the other side of the transfer
-	MatchedTransactionID  types.NullString `json:"matched_transaction_id"`  // If transaction is matched, the id of the matched transaction
-	Deleted               bool             `json:"deleted"`
-	Type                  string           `json:"type"`                  // Whether the hybrid transaction represents a regular transaction or a subtransaction
-	ParentTransactionID   types.NullString `json:"parent_transaction_id"` // For subtransaction types, this is the id of the parent transaction. For transaction types, this will be null.
-	Subtransactions       []Transaction    `json:"subtransactions"`
+	ID                      string           `json:"id"`
+	Date                    Date             `json:"date"`   // The transaction date in ISO format (e.g. 2016-12-01)
+	Amount                  int64            `json:"amount"` // The transaction amount in milliunits format
+	Memo                    string           `json:"memo"`
+	Cleared                 ClearedStatus    `json:"cleared"`
+	Approved                bool             `json:"approved"` // Whether or not the transaction is approved
+	FlagColor               FlagColor        `json:"flag_color"`
+	FlagName                types.NullString `json:"flag_name"` // The customized name of a transaction flag
+	AccountID               string           `json:"account_id"`
+	AccountName             string           `json:"account_name"`
+	PayeeID                 types.NullString `json:"payee_id"`
+	PayeeName               string           `json:"payee_name"`
+	CategoryID              types.NullString `json:"category_id"`
+	CategoryName            types.NullString `json:"category_name"`              // If a split transaction, this will be 'Split'.
+	TransferAccountID       types.NullString `json:"transfer_account_id"`        // If a transfer transaction, the account to which it transfers
+	TransferTransactionID   types.NullString `json:"transfer_transaction_id"`    // If a transfer transaction, the id of transaction on the other side of the transfer
+	MatchedTransactionID    types.NullString `json:"matched_transaction_id"`     // If transaction is matched, the id of the matched transaction
+	ImportID                types.NullString `json:"import_id"`                  // If the transaction was imported, a unique (by account) import identifier
+	ImportPayeeName         types.NullString `json:"import_payee_name"`          // If the transaction was imported, the payee name that was used when importing and before applying any payee rename rules
+	ImportPayeeNameOriginal types.NullString `json:"import_payee_name_original"` // If the transaction was imported, the original payee name as it appeared on the statement
+	DebtTransactionType     types.NullString `json:"debt_transaction_type"`      // If a debt/loan account transaction, the type of transaction
+	Deleted                 bool             `json:"deleted"`
+	Type                    string           `json:"type"`                  // Whether the hybrid transaction represents a regular transaction or a subtransaction
+	ParentTransactionID     types.NullString `json:"parent_transaction_id"` // For subtransaction types, this is the id of the parent transaction. For transaction types, this will be null.
+	Subtransactions         []Transaction    `json:"subtransactions"`
 }
 
 // HybridTransactionListResponse wraps the hybrid transaction list response.

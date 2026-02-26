@@ -1,5 +1,17 @@
 # Changelog & Upgrade Guide
 
+### v1.6.0 (2026-02-26)
+
+Add missing fields to structs to match the YNAB OpenAPI spec.
+
+- `Transaction`: add `DebtTransactionType`, `FlagName`, `ImportID`, `ImportPayeeName`, `ImportPayeeNameOriginal`
+- `Account`: add `ClearedBalance`, `UnclearedBalance`, `DirectImportLinked`, `DirectImportInError`, `LastReconciledAt`, `DebtInterestRates`, `DebtMinimumPayments`, `DebtEscrowAmounts`
+- `Category`: add `CategoryGroupName`, `GoalNeedsWholeAmount`, `GoalDay`, `GoalCadence`, `GoalCadenceFrequency`, `GoalCreationMonth`, `GoalTargetMonth`, `GoalSnoozedAt`
+- `Budget`: add `LastModifiedOn`, `FirstMonth`, `LastMonth`, `DateFormat`, `CurrencyFormat`
+- `BudgetDetail`: add `FirstMonth`, `LastMonth`, `Payees`, `PayeeLocations`, `CategoryGroups`, `Transactions`, `Subtransactions`, `ScheduledTransactions`, `ScheduledSubtransactions`
+- `ScheduledTransaction`: add `CategoryID`, `FlagName`, `PayeeID`; remove `Approved` and `Cleared` (not in spec)
+- `HybridTransaction`: add `FlagName`, `ImportID`, `ImportPayeeName`, `ImportPayeeNameOriginal`, `DebtTransactionType`
+
 ### v1.5.0 (2026-02-18)
 
 Add endpoints covering most of the remaining YNAB API surface.

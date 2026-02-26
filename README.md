@@ -1,7 +1,7 @@
 # ynab-go
 
-This is a You Need a Budget client but it's incomplete. Right now the only
-supported endpoints are the ones necessary to do the Age of Money calculation.
+A Go client for the [YNAB (You Need a Budget) API](https://api.ynab.com). All
+API endpoints and response fields are supported.
 
 ### Age of Money
 
