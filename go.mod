@@ -1,13 +1,13 @@
 module github.com/kevinburke/ynab-go
 
-go 1.25
+go 1.25.0
 
 require (
 	github.com/juju/ansiterm v1.0.0
 	github.com/kevinburke/go-types v0.0.0-20260305071322-1b56584224d7
 	github.com/kevinburke/rest v0.0.0-20250718180114-1a15e4f2364f
 	golang.org/x/term v0.33.0
-	golang.org/x/text v0.27.0
+	golang.org/x/text v0.35.0
 )
 
 require (
