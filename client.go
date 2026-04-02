@@ -41,25 +41,25 @@ type NewTransaction struct {
 	AccountID  string           `json:"account_id"`
 	Date       Date             `json:"date"`   // The transaction date in ISO format (e.g. 2016-12-01). Future dates (scheduled transactions) are not permitted.
 	Amount     int64            `json:"amount"` // The transaction amount in milliunits format
-	PayeeID    types.NullString `json:"payee_id,omitempty"`
-	PayeeName  types.NullString `json:"payee_name,omitempty"`  // If provided and payee_id is null, used to resolve the payee by matching rename rule, same name, or creation of a new payee.
-	CategoryID types.NullString `json:"category_id,omitempty"` // To configure a split, specify null and provide a subtransactions array. Credit Card Payment categories are not permitted.
-	Memo       types.NullString `json:"memo,omitempty"`
+	PayeeID    types.NullString `json:"payee_id"`
+	PayeeName  types.NullString `json:"payee_name"`  // If provided and payee_id is null, used to resolve the payee by matching rename rule, same name, or creation of a new payee.
+	CategoryID types.NullString `json:"category_id"` // To configure a split, specify null and provide a subtransactions array. Credit Card Payment categories are not permitted.
+	Memo       types.NullString `json:"memo"`
 	Cleared    ClearedStatus    `json:"cleared,omitempty"`
 	Approved   bool             `json:"approved"` // Whether or not the transaction is approved. If not supplied, transaction will be unapproved by default.
 	FlagColor  FlagColor        `json:"flag_color,omitempty"`
 	// An array of subtransactions to configure a transaction as a split. Updating subtransactions on an existing split transaction is not supported.
 	Subtransactions   []*NewSubTransaction `json:"subtransactions,omitempty"`
-	ImportID          types.NullString     `json:"import_id,omitempty"`
-	TransferAccountID types.NullString     `json:"transfer_account_id,omitempty"`
+	ImportID          types.NullString     `json:"import_id"`
+	TransferAccountID types.NullString     `json:"transfer_account_id"`
 }
 
 type NewSubTransaction struct {
 	Amount     int64            `json:"amount"` // The subtransaction amount in milliunits format
-	PayeeID    types.NullString `json:"payee_id,omitempty"`
-	PayeeName  types.NullString `json:"payee_name,omitempty"`  // If provided and payee_id is null, used to resolve the payee by matching rename rule, same name, or creation of a new payee.
-	CategoryID types.NullString `json:"category_id,omitempty"` // Credit Card Payment categories are not permitted.
-	Memo       types.NullString `json:"memo,omitempty"`
+	PayeeID    types.NullString `json:"payee_id"`
+	PayeeName  types.NullString `json:"payee_name"`  // If provided and payee_id is null, used to resolve the payee by matching rename rule, same name, or creation of a new payee.
+	CategoryID types.NullString `json:"category_id"` // Credit Card Payment categories are not permitted.
+	Memo       types.NullString `json:"memo"`
 }
 
 type CreateTransactionResponse struct {
@@ -78,25 +78,25 @@ type UpdateTransactionRequest struct {
 
 type UpdateTransaction struct {
 	AccountID  *string          `json:"account_id,omitempty"`
-	Date       Date             `json:"date"`                  // The transaction date in ISO format (e.g. 2016-12-01). Split transaction dates cannot be changed.
-	Amount     *int64           `json:"amount,omitempty"`      // The transaction amount in milliunits format. Split transaction amounts cannot be changed.
-	PayeeID    types.NullString `json:"payee_id,omitempty"`    // To create a transfer, use the account transfer payee pointing to the target account.
-	PayeeName  types.NullString `json:"payee_name,omitempty"`  // If provided and payee_id is null, used to resolve the payee by matching rename rule, same name, or creation of a new payee.
-	CategoryID types.NullString `json:"category_id,omitempty"` // Credit Card Payment categories are not permitted.
-	Memo       types.NullString `json:"memo,omitempty"`
-	Cleared    types.NullString `json:"cleared,omitempty"`
+	Date       Date             `json:"date"`             // The transaction date in ISO format (e.g. 2016-12-01). Split transaction dates cannot be changed.
+	Amount     *int64           `json:"amount,omitempty"` // The transaction amount in milliunits format. Split transaction amounts cannot be changed.
+	PayeeID    types.NullString `json:"payee_id"`         // To create a transfer, use the account transfer payee pointing to the target account.
+	PayeeName  types.NullString `json:"payee_name"`       // If provided and payee_id is null, used to resolve the payee by matching rename rule, same name, or creation of a new payee.
+	CategoryID types.NullString `json:"category_id"`      // Credit Card Payment categories are not permitted.
+	Memo       types.NullString `json:"memo"`
+	Cleared    types.NullString `json:"cleared"`
 	Approved   *bool            `json:"approved,omitempty"` // Whether or not the transaction is approved.
-	FlagColor  types.NullString `json:"flag_color,omitempty"`
+	FlagColor  types.NullString `json:"flag_color"`
 	// An array of subtransactions to configure a transaction as a split. Updating subtransactions on an existing split transaction is not supported.
 	Subtransactions []*SubTransaction `json:"subtransactions,omitempty"`
 }
 
 type SubTransaction struct {
 	Amount     int64            `json:"amount"` // The subtransaction amount in milliunits format
-	PayeeID    types.NullString `json:"payee_id,omitempty"`
-	PayeeName  types.NullString `json:"payee_name,omitempty"`
-	CategoryID types.NullString `json:"category_id,omitempty"` // Credit Card Payment categories are not permitted.
-	Memo       types.NullString `json:"memo,omitempty"`
+	PayeeID    types.NullString `json:"payee_id"`
+	PayeeName  types.NullString `json:"payee_name"`
+	CategoryID types.NullString `json:"category_id"` // Credit Card Payment categories are not permitted.
+	Memo       types.NullString `json:"memo"`
 }
 
 type CategoryListResponse struct {
@@ -365,13 +365,13 @@ type AccountListWrapper struct {
 }
 
 type Budget struct {
-	ID             string      `json:"id"`
-	Name           string      `json:"name"`
-	LastModifiedOn string      `json:"last_modified_on"` // The last time any changes were made to the budget from either a web or mobile client
-	FirstMonth     string      `json:"first_month"`      // The earliest budget month
-	LastMonth      string      `json:"last_month"`       // The latest budget month
-	DateFormat     interface{} `json:"date_format"`
-	CurrencyFormat interface{} `json:"currency_format"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	LastModifiedOn string `json:"last_modified_on"` // The last time any changes were made to the budget from either a web or mobile client
+	FirstMonth     string `json:"first_month"`      // The earliest budget month
+	LastMonth      string `json:"last_month"`       // The latest budget month
+	DateFormat     any    `json:"date_format"`
+	CurrencyFormat any    `json:"currency_format"`
 }
 
 type BudgetListResponse struct {
@@ -402,8 +402,8 @@ type BudgetDetail struct {
 	LastModifiedOn           string                  `json:"last_modified_on"` // The last time any changes were made to the budget from either a web or mobile client
 	FirstMonth               string                  `json:"first_month"`      // The earliest budget month
 	LastMonth                string                  `json:"last_month"`       // The latest budget month
-	DateFormat               interface{}             `json:"date_format"`
-	CurrencyFormat           interface{}             `json:"currency_format"`
+	DateFormat               any                     `json:"date_format"`
+	CurrencyFormat           any                     `json:"currency_format"`
 	Accounts                 []*Account              `json:"accounts"`
 	Payees                   []*Payee                `json:"payees"`
 	PayeeLocations           []*PayeeLocation        `json:"payee_locations"`
@@ -752,12 +752,12 @@ type ScheduledTransactionResponse struct {
 // SaveScheduledTransaction represents the data for creating or updating a scheduled transaction.
 type SaveScheduledTransaction struct {
 	AccountID  string           `json:"account_id"`
-	Date       Date             `json:"date"`                  // The scheduled transaction date in ISO format (e.g. 2016-12-01). Must be a future date no more than 5 years out.
-	Amount     *int64           `json:"amount,omitempty"`      // The scheduled transaction amount in milliunits format
-	PayeeID    types.NullString `json:"payee_id,omitempty"`    // To create a transfer, use the account transfer payee pointing to the target account.
-	PayeeName  types.NullString `json:"payee_name,omitempty"`  // If provided and payee_id is null, used to resolve the payee by same name or creation of a new payee.
-	CategoryID types.NullString `json:"category_id,omitempty"` // Credit Card Payment categories are not permitted. Split scheduled transactions are not supported.
-	Memo       types.NullString `json:"memo,omitempty"`
+	Date       Date             `json:"date"`             // The scheduled transaction date in ISO format (e.g. 2016-12-01). Must be a future date no more than 5 years out.
+	Amount     *int64           `json:"amount,omitempty"` // The scheduled transaction amount in milliunits format
+	PayeeID    types.NullString `json:"payee_id"`         // To create a transfer, use the account transfer payee pointing to the target account.
+	PayeeName  types.NullString `json:"payee_name"`       // If provided and payee_id is null, used to resolve the payee by same name or creation of a new payee.
+	CategoryID types.NullString `json:"category_id"`      // Credit Card Payment categories are not permitted. Split scheduled transactions are not supported.
+	Memo       types.NullString `json:"memo"`
 	FlagColor  FlagColor        `json:"flag_color,omitempty"`
 	Frequency  string           `json:"frequency,omitempty"`
 }
@@ -778,7 +778,7 @@ type BudgetService struct {
 	id string
 }
 
-func (c *Client) PutResource(ctx context.Context, pathPart string, sid string, req interface{}, resp interface{}) error {
+func (c *Client) PutResource(ctx context.Context, pathPart string, sid string, req any, resp any) error {
 	sidPart := strings.Join([]string{pathPart, sid}, "/")
 	return c.MakeRequest(ctx, "PUT", sidPart, nil, req, resp)
 }
@@ -1105,7 +1105,7 @@ func (e *Error) Error() string {
 	return e.Message
 }
 
-func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, reqBody interface{}, v interface{}) error {
+func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, reqBody any, v any) error {
 	var rb io.Reader
 	if reqBody != nil || (method == "POST" || method == "PUT" || method == "PATCH") {
 		reqBodyJSON, err := json.Marshal(reqBody)

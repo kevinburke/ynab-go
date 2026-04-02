@@ -163,8 +163,8 @@ func main() {
 	outflowSum := int64(0)
 	runningTotal := int64(0)
 	excludes := make(map[string]struct{})
-	parts := strings.Split(*exclude, ",")
-	for _, part := range parts {
+	parts := strings.SplitSeq(*exclude, ",")
+	for part := range parts {
 		excludes[part] = struct{}{}
 	}
 	for i := range txns {

@@ -468,7 +468,7 @@ func TestNewTransferTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var decoded map[string]interface{}
+	var decoded map[string]any
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatal(err)
 	}
@@ -554,7 +554,7 @@ func TestUpdateTransactionToTransfer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var decoded map[string]interface{}
+	var decoded map[string]any
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatal(err)
 	}
