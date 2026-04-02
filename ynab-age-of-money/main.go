@@ -59,7 +59,7 @@ func isOutflow(accountMap map[string]*ynab.Account, tx *ynab.Transaction, schedu
 	if !ok {
 		panic("unknown account: " + txnAccount.ID + " " + txnAccount.Name)
 	}
-	if txnAccount.OnBudget == false {
+	if !txnAccount.OnBudget {
 		return false
 	}
 	var transferAccount *ynab.Account
@@ -71,7 +71,7 @@ func isOutflow(accountMap map[string]*ynab.Account, tx *ynab.Transaction, schedu
 		}
 	}
 	if txnAccount.CashBacked() {
-		if transferAccount == nil || transferAccount.OnBudget == false ||
+		if transferAccount == nil || !transferAccount.OnBudget ||
 			// For scheduled transfers we only see one side of the transaction
 			// - cash => credit transfers in the past get caught below but we need
 			// to catch scheduled ones here also.
@@ -199,7 +199,7 @@ func main() {
 		if !ok {
 			panic("unknown account: " + tx.AccountID)
 		}
-		if txnAccount.OnBudget == false {
+		if !txnAccount.OnBudget {
 			continue
 		}
 		if !txnAccount.CashBacked() {
@@ -216,7 +216,7 @@ func main() {
 			}
 			// transfers from off budget accounts are income, on budget, they
 			// are just moving money around
-			if transferAccount.OnBudget == true {
+			if transferAccount.OnBudget {
 				continue
 			}
 		}
@@ -336,7 +336,7 @@ func main() {
 		}
 
 		if !isOutflow(accountMap, txnIsh, true) {
-			if *includeScheduledIncome == false {
+			if !*includeScheduledIncome {
 				continue
 			}
 			txnAccount, ok := accountMap[txnIsh.AccountID]
@@ -356,7 +356,7 @@ func main() {
 				}
 				// transfers from off budget accounts are income, on budget, they
 				// are just moving money around
-				if txnAccount.CashBacked() && transferAccount.OnBudget == true {
+				if txnAccount.CashBacked() && transferAccount.OnBudget {
 					continue
 				}
 			}
