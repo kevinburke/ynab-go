@@ -2,11 +2,16 @@ on: [push, pull_request]
 name: Test
 jobs:
   test:
+    strategy:
+      matrix:
+        go-version: ['1.25.x', '1.26.x']
     runs-on: ubuntu-latest
     steps:
     - name: Install Go
       # https://github.com/actions/setup-go/tags
       uses: actions/setup-go@v5
+      with:
+        go-version: '${{ matrix.go-version }}'
       # https://github.com/actions/checkout/tags
     - uses: actions/checkout@v6
       with:
