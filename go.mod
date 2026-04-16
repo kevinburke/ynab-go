@@ -7,7 +7,7 @@ require (
 	github.com/kevinburke/go-types v0.0.0-20260305071322-1b56584224d7
 	github.com/kevinburke/rest v0.0.0-20250718180114-1a15e4f2364f
 	golang.org/x/term v0.42.0
-	golang.org/x/text v0.35.0
+	golang.org/x/text v0.36.0
 )
 
 require (
