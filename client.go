@@ -18,7 +18,9 @@ type Client struct {
 	*restclient.Client
 
 	userAgent string
-	Budgets   func(budgetID string) *BudgetService
+	Plans     func(planID string) *PlanService
+	// Budgets is deprecated. Use Plans.
+	Budgets func(budgetID string) *PlanService
 }
 
 type TransactionListResponse struct {
@@ -104,57 +106,76 @@ type CategoryListResponse struct {
 }
 
 type CategoryListWrapper struct {
-	CategoryGroups []*CategoryGroup `json:"category_groups"`
+	CategoryGroups  []*CategoryGroup `json:"category_groups"`
+	ServerKnowledge int64            `json:"server_knowledge"`
 }
 
 type CategoryGroup struct {
 	ID         string
 	Name       string
 	Hidden     bool
+	Internal   bool
 	Deleted    bool
 	Categories []*Category
 }
 
 type Category struct {
-	ID              string
-	Name            string
-	CategoryGroupID string `json:"category_group_id"`
-	Note            string
-	Hidden          bool
-	Deleted         bool
-	Budgeted        int64 // Budgeted amount in milliunits format
-	Activity        int64 // Activity amount in milliunits format
-	Balance         int64 // Balance in milliunits format
+	ID                      string
+	Name                    string
+	CategoryGroupID         string           `json:"category_group_id"`
+	CategoryGroupName       string           `json:"category_group_name"` // The name of the category group
+	OriginalCategoryGroupID types.NullString `json:"original_category_group_id"`
+	Note                    string           `json:"note"`
+	Hidden                  bool
+	Internal                bool
+	Deleted                 bool
+	Budgeted                int64 // Assigned (budgeted) amount in milliunits format
+	Activity                int64 // Activity amount in milliunits format
+	Balance                 int64 // Available balance in milliunits format
 
-	CategoryGroupName string `json:"category_group_name"` // The name of the category group
+	BudgetedFormatted string  `json:"budgeted_formatted"`
+	BudgetedCurrency  float64 `json:"budgeted_currency"`
+	ActivityFormatted string  `json:"activity_formatted"`
+	ActivityCurrency  float64 `json:"activity_currency"`
+	BalanceFormatted  string  `json:"balance_formatted"`
+	BalanceCurrency   float64 `json:"balance_currency"`
 
-	GoalType               types.NullString `json:"goal_type"`                // The type of goal, or null. TB=Target Category Balance, TBD=Target Category Balance by Date, MF=Monthly Funding, NEED=Plan Your Spending, DEBT=Debt Payoff
-	GoalTarget             *int64           `json:"goal_target"`              // The goal target amount in milliunits
-	GoalPercentageComplete *int32           `json:"goal_percentage_complete"` // The percentage completed of the goal
-	GoalMonthsToBudget     *int32           `json:"goal_months_to_budget"`    // The number of months remaining until the goal is completed
-	GoalUnderFunded        *int64           `json:"goal_under_funded"`        // The amount of funding still needed in milliunits
-	GoalOverallFunded      *int64           `json:"goal_overall_funded"`      // The total amount funded towards the goal in milliunits
-	GoalOverallLeft        *int64           `json:"goal_overall_left"`        // The amount still left to fund the goal in milliunits
-	GoalNeedsWholeAmount   *bool            `json:"goal_needs_whole_amount"`  // For NEED goals: true=Set Aside, false=Refill. Null for other goal types
-	GoalDay                *int32           `json:"goal_day"`                 // Day offset for the goal's due date
-	GoalCadence            *int32           `json:"goal_cadence"`             // The goal cadence (0-14)
-	GoalCadenceFrequency   *int32           `json:"goal_cadence_frequency"`   // The goal cadence frequency
-	GoalCreationMonth      types.NullString `json:"goal_creation_month"`      // The month a goal was created
-	GoalTargetMonth        types.NullString `json:"goal_target_month"`        // The original target month for the goal to be completed
-	GoalSnoozedAt          types.NullString `json:"goal_snoozed_at"`          // The date/time the goal was snoozed
+	GoalType                   types.NullString `json:"goal_type"`                     // The type of goal, or null. TB=Target Category Balance, TBD=Target Category Balance by Date, MF=Monthly Funding, NEED=Plan Your Spending, DEBT=Debt Payoff
+	GoalTarget                 *int64           `json:"goal_target"`                   // The goal target amount in milliunits
+	GoalTargetFormatted        types.NullString `json:"goal_target_formatted"`         // The goal target amount formatted in the plan's currency format
+	GoalTargetCurrency         *float64         `json:"goal_target_currency"`          // The goal target amount as a decimal currency amount
+	GoalPercentageComplete     *int32           `json:"goal_percentage_complete"`      // The percentage completed of the goal
+	GoalMonthsToBudget         *int32           `json:"goal_months_to_budget"`         // The number of months remaining until the goal is completed
+	GoalUnderFunded            *int64           `json:"goal_under_funded"`             // The amount of funding still needed in milliunits
+	GoalUnderFundedFormatted   types.NullString `json:"goal_under_funded_formatted"`   // The goal underfunded amount formatted in the plan's currency format
+	GoalUnderFundedCurrency    *float64         `json:"goal_under_funded_currency"`    // The goal underfunded amount as a decimal currency amount
+	GoalOverallFunded          *int64           `json:"goal_overall_funded"`           // The total amount funded towards the goal in milliunits
+	GoalOverallFundedFormatted types.NullString `json:"goal_overall_funded_formatted"` // The total amount funded towards the goal formatted in the plan's currency format
+	GoalOverallFundedCurrency  *float64         `json:"goal_overall_funded_currency"`  // The total amount funded towards the goal as a decimal currency amount
+	GoalOverallLeft            *int64           `json:"goal_overall_left"`             // The amount still left to fund the goal in milliunits
+	GoalOverallLeftFormatted   types.NullString `json:"goal_overall_left_formatted"`   // The amount still left to fund the goal formatted in the plan's currency format
+	GoalOverallLeftCurrency    *float64         `json:"goal_overall_left_currency"`    // The amount still left to fund the goal as a decimal currency amount
+	GoalNeedsWholeAmount       *bool            `json:"goal_needs_whole_amount"`       // For NEED goals: true=Set Aside, false=Refill. Null for other goal types
+	GoalDay                    *int32           `json:"goal_day"`                      // Day offset for the goal's due date
+	GoalCadence                *int32           `json:"goal_cadence"`                  // The goal cadence (0-14)
+	GoalCadenceFrequency       *int32           `json:"goal_cadence_frequency"`        // The goal cadence frequency
+	GoalCreationMonth          types.NullString `json:"goal_creation_month"`           // The month a goal was created
+	GoalTargetMonth            types.NullString `json:"goal_target_month"`             // The original target month for the goal to be completed
+	GoalTargetDate             types.NullString `json:"goal_target_date"`              // The target date for the goal to be completed
+	GoalSnoozedAt              types.NullString `json:"goal_snoozed_at"`               // The date/time the goal was snoozed
 }
 
-// UpdateMonthCategoryRequest is the request body for updating a category's budget for a month.
+// UpdateMonthCategoryRequest is the request body for updating a category's assigned amount for a month.
 type UpdateMonthCategoryRequest struct {
 	Category SaveMonthCategory `json:"category"`
 }
 
-// SaveMonthCategory contains the budgeted amount to set for a category in a month.
+// SaveMonthCategory contains the assigned amount to set for a category in a month.
 type SaveMonthCategory struct {
 	Budgeted int64 `json:"budgeted"` // Budgeted amount in milliunits format
 }
 
-// SaveCategoryResponse is the response from updating a category's budget.
+// SaveCategoryResponse is the response from creating or updating a category.
 type SaveCategoryResponse struct {
 	Data SaveCategoryData `json:"data"`
 }
@@ -176,7 +197,8 @@ type CategoryData struct {
 }
 
 type TransactionListWrapper struct {
-	Transactions []*Transaction `json:"transactions"`
+	Transactions    []*Transaction `json:"transactions"`
+	ServerKnowledge int64          `json:"server_knowledge"`
 }
 
 type ScheduledTransactionListResponse struct {
@@ -185,6 +207,7 @@ type ScheduledTransactionListResponse struct {
 
 type ScheduledTransactionListWrapper struct {
 	ScheduledTransactions []*ScheduledTransaction `json:"scheduled_transactions"`
+	ServerKnowledge       int64                   `json:"server_knowledge"`
 }
 
 type Date time.Time
@@ -246,6 +269,8 @@ type ScheduledTransaction struct {
 	AccountID         string           `json:"account_id"`
 	AccountName       string           `json:"account_name"`
 	Amount            int64            // The scheduled transaction amount in milliunits format
+	AmountFormatted   string           `json:"amount_formatted"`
+	AmountCurrency    float64          `json:"amount_currency"`
 	CategoryID        types.NullString `json:"category_id"`
 	CategoryName      types.NullString `json:"category_name"`
 	DateFirst         Date             `json:"date_first"` // The first date for which the Scheduled Transaction was scheduled.
@@ -266,6 +291,8 @@ type Transaction struct {
 	AccountID               string           `json:"account_id"`
 	AccountName             string           `json:"account_name"`
 	Amount                  int64            // The transaction amount in milliunits format
+	AmountFormatted         string           `json:"amount_formatted"`
+	AmountCurrency          float64          `json:"amount_currency"`
 	Approved                bool             // Whether or not the transaction is approved
 	CategoryID              types.NullString `json:"category_id"`
 	CategoryName            types.NullString `json:"category_name"` // The name of the category. If a split transaction, this will be 'Split'.
@@ -332,24 +359,30 @@ func (fc FlagColor) MarshalJSON() ([]byte, error) {
 }
 
 type Account struct {
-	ID                  string
-	Name                string
-	Type                string
-	OnBudget            bool `json:"on_budget"` // Whether this account is on budget or not
-	Closed              bool // Whether this account is closed or not
-	Note                string
-	Balance             int64 // The current balance of the account in milliunits format
-	ClearedBalance      int64 `json:"cleared_balance"`   // The current cleared balance of the account in milliunits format
-	UnclearedBalance    int64 `json:"uncleared_balance"` // The current uncleared balance of the account in milliunits format
-	StartingBalance     int64 `json:"starting_balance"`
-	Deleted             bool
-	TransferPayeeID     types.NullString `json:"transfer_payee_id"`      // The payee id which should be used when transferring to this account
-	DirectImportLinked  bool             `json:"direct_import_linked"`   // Whether or not the account is linked to a financial institution for automatic transaction import
-	DirectImportInError bool             `json:"direct_import_in_error"` // If an account linked to a financial institution and the linked connection is not in a healthy state, this will be true
-	LastReconciledAt    types.NullString `json:"last_reconciled_at"`     // A date/time specifying when the account was last reconciled
-	DebtInterestRates   map[string]int64 `json:"debt_interest_rates"`    // Loan account periodic interest rate values
-	DebtMinimumPayments map[string]int64 `json:"debt_minimum_payments"`  // Loan account periodic minimum payment values
-	DebtEscrowAmounts   map[string]int64 `json:"debt_escrow_amounts"`    // Loan account periodic escrow amount values
+	ID                        string
+	Name                      string
+	Type                      string
+	OnBudget                  bool `json:"on_budget"` // Whether this account is on budget or not
+	Closed                    bool // Whether this account is closed or not
+	Note                      string
+	Balance                   int64   // The current balance of the account in milliunits format
+	ClearedBalance            int64   `json:"cleared_balance"`   // The current cleared balance of the account in milliunits format
+	UnclearedBalance          int64   `json:"uncleared_balance"` // The current uncleared balance of the account in milliunits format
+	BalanceFormatted          string  `json:"balance_formatted"`
+	BalanceCurrency           float64 `json:"balance_currency"`
+	ClearedBalanceFormatted   string  `json:"cleared_balance_formatted"`
+	ClearedBalanceCurrency    float64 `json:"cleared_balance_currency"`
+	UnclearedBalanceFormatted string  `json:"uncleared_balance_formatted"`
+	UnclearedBalanceCurrency  float64 `json:"uncleared_balance_currency"`
+	StartingBalance           int64   `json:"starting_balance"`
+	Deleted                   bool
+	TransferPayeeID           types.NullString `json:"transfer_payee_id"`      // The payee id which should be used when transferring to this account
+	DirectImportLinked        bool             `json:"direct_import_linked"`   // Whether or not the account is linked to a financial institution for automatic transaction import
+	DirectImportInError       bool             `json:"direct_import_in_error"` // If an account linked to a financial institution and the linked connection is not in a healthy state, this will be true
+	LastReconciledAt          types.NullString `json:"last_reconciled_at"`     // A date/time specifying when the account was last reconciled
+	DebtInterestRates         map[string]int64 `json:"debt_interest_rates"`    // Loan account periodic interest rate values
+	DebtMinimumPayments       map[string]int64 `json:"debt_minimum_payments"`  // Loan account periodic minimum payment values
+	DebtEscrowAmounts         map[string]int64 `json:"debt_escrow_amounts"`    // Loan account periodic escrow amount values
 }
 
 func (a Account) CashBacked() bool {
@@ -361,17 +394,31 @@ type AccountListResponse struct {
 }
 
 type AccountListWrapper struct {
-	Accounts []*Account `json:"accounts"`
+	Accounts        []*Account `json:"accounts"`
+	ServerKnowledge int64      `json:"server_knowledge"`
 }
 
-type Budget struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	LastModifiedOn string `json:"last_modified_on"` // The last time any changes were made to the budget from either a web or mobile client
-	FirstMonth     string `json:"first_month"`      // The earliest budget month
-	LastMonth      string `json:"last_month"`       // The latest budget month
-	DateFormat     any    `json:"date_format"`
-	CurrencyFormat any    `json:"currency_format"`
+type Plan struct {
+	ID             string     `json:"id"`
+	Name           string     `json:"name"`
+	LastModifiedOn string     `json:"last_modified_on"` // The last time any changes were made to the plan from either a web or mobile client
+	FirstMonth     string     `json:"first_month"`      // The earliest plan month
+	LastMonth      string     `json:"last_month"`       // The latest plan month
+	DateFormat     any        `json:"date_format"`
+	CurrencyFormat any        `json:"currency_format"`
+	Accounts       []*Account `json:"accounts,omitempty"`
+}
+
+// Budget is deprecated. Use Plan.
+type Budget = Plan
+
+type PlanListResponse struct {
+	Data PlanListWrapper `json:"data"`
+}
+
+type PlanListWrapper struct {
+	Plans       []*Plan `json:"plans"`
+	DefaultPlan *Plan   `json:"default_plan"`
 }
 
 type BudgetListResponse struct {
@@ -379,29 +426,38 @@ type BudgetListResponse struct {
 }
 
 type BudgetListWrapper struct {
-	Budgets []*Budget `json:"budgets"`
+	Budgets       []*Budget `json:"plans"`
+	DefaultBudget *Budget   `json:"default_plan"`
 }
 
-// MonthDetail represents a budget month with all its categories.
+// MonthDetail represents a plan month with all its categories.
 type MonthDetail struct {
-	Month      string      `json:"month"`
-	Note       string      `json:"note"`
-	Income     int64       `json:"income"`         // The total amount of transactions categorized to 'Inflow: Ready to Assign' in the month
-	Budgeted   int64       `json:"budgeted"`       // The total amount budgeted in the month
-	Activity   int64       `json:"activity"`       // The total amount of transactions in the month, excluding those categorized to 'Inflow: Ready to Assign'
-	ToBeBudget int64       `json:"to_be_budgeted"` // The available amount for 'Ready to Assign'
-	AgeOfMoney int         `json:"age_of_money"`   // The Age of Money as of the month
-	Deleted    bool        `json:"deleted"`
-	Categories []*Category `json:"categories"` // Amounts (budgeted, activity, balance, etc.) are specific to this month.
+	Month                 string      `json:"month"`
+	Note                  string      `json:"note"`
+	Income                int64       `json:"income"` // The total amount of transactions categorized to 'Inflow: Ready to Assign' in the month
+	IncomeFormatted       string      `json:"income_formatted"`
+	IncomeCurrency        float64     `json:"income_currency"`
+	Budgeted              int64       `json:"budgeted"` // The total amount assigned in the month
+	BudgetedFormatted     string      `json:"budgeted_formatted"`
+	BudgetedCurrency      float64     `json:"budgeted_currency"`
+	Activity              int64       `json:"activity"` // The total amount of transactions in the month, excluding those categorized to 'Inflow: Ready to Assign'
+	ActivityFormatted     string      `json:"activity_formatted"`
+	ActivityCurrency      float64     `json:"activity_currency"`
+	ToBeBudget            int64       `json:"to_be_budgeted"` // The available amount for 'Ready to Assign'
+	ToBeBudgetedFormatted string      `json:"to_be_budgeted_formatted"`
+	ToBeBudgetedCurrency  float64     `json:"to_be_budgeted_currency"`
+	AgeOfMoney            int         `json:"age_of_money"` // The Age of Money as of the month
+	Deleted               bool        `json:"deleted"`
+	Categories            []*Category `json:"categories"` // Amounts (budgeted, activity, balance, etc.) are specific to this month.
 }
 
-// BudgetDetail represents a full budget export with all related entities.
-type BudgetDetail struct {
+// PlanDetail represents a full plan export with all related entities.
+type PlanDetail struct {
 	ID                       string                  `json:"id"`
 	Name                     string                  `json:"name"`
-	LastModifiedOn           string                  `json:"last_modified_on"` // The last time any changes were made to the budget from either a web or mobile client
-	FirstMonth               string                  `json:"first_month"`      // The earliest budget month
-	LastMonth                string                  `json:"last_month"`       // The latest budget month
+	LastModifiedOn           string                  `json:"last_modified_on"` // The last time any changes were made to the plan from either a web or mobile client
+	FirstMonth               string                  `json:"first_month"`      // The earliest plan month
+	LastMonth                string                  `json:"last_month"`       // The latest plan month
 	DateFormat               any                     `json:"date_format"`
 	CurrencyFormat           any                     `json:"currency_format"`
 	Accounts                 []*Account              `json:"accounts"`
@@ -416,18 +472,42 @@ type BudgetDetail struct {
 	ScheduledSubtransactions []*ScheduledTransaction `json:"scheduled_subtransactions"`
 }
 
-// BudgetDetailResponse wraps the budget detail response
+// BudgetDetail is deprecated. Use PlanDetail.
+type BudgetDetail = PlanDetail
+
+// PlanDetailResponse wraps the plan detail response.
+type PlanDetailResponse struct {
+	Data struct {
+		Plan            *PlanDetail `json:"plan"`
+		ServerKnowledge int64       `json:"server_knowledge"`
+	} `json:"data"`
+}
+
+// BudgetDetailResponse wraps the plan detail response with the old field name.
 type BudgetDetailResponse struct {
 	Data struct {
-		Budget          *BudgetDetail `json:"budget"`
+		Budget          *BudgetDetail `json:"plan"`
 		ServerKnowledge int64         `json:"server_knowledge"`
 	} `json:"data"`
 }
 
-// GetBudget returns a full budget export with all months and categories.
+// GetPlan returns a full plan export with all months and categories.
 // This is more efficient than making per-month API calls.
-func (b *BudgetService) GetBudget(ctx context.Context) (*BudgetDetailResponse, error) {
-	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+b.id, nil)
+func (b *PlanService) GetPlan(ctx context.Context) (*PlanDetailResponse, error) {
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/plans/"+b.id, nil)
+	if err != nil {
+		return nil, err
+	}
+	planResp := new(PlanDetailResponse)
+	if err := b.client.Do(req, planResp); err != nil {
+		return nil, err
+	}
+	return planResp, nil
+}
+
+// GetBudget is deprecated. Use GetPlan.
+func (b *PlanService) GetBudget(ctx context.Context) (*BudgetDetailResponse, error) {
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/plans/"+b.id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -438,8 +518,21 @@ func (b *BudgetService) GetBudget(ctx context.Context) (*BudgetDetailResponse, e
 	return budgetResp, nil
 }
 
+func (c *Client) GetPlans(ctx context.Context, data url.Values) (*PlanListResponse, error) {
+	req, err := c.NewRequestWithContext(ctx, "GET", "/plans?"+data.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+	planResp := new(PlanListResponse)
+	if err := c.Do(req, planResp); err != nil {
+		return nil, err
+	}
+	return planResp, nil
+}
+
+// GetBudgets is deprecated. Use GetPlans.
 func (c *Client) GetBudgets(ctx context.Context, data url.Values) (*BudgetListResponse, error) {
-	req, err := c.NewRequestWithContext(ctx, "GET", "/budgets?"+data.Encode(), nil)
+	req, err := c.NewRequestWithContext(ctx, "GET", "/plans?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -450,8 +543,8 @@ func (c *Client) GetBudgets(ctx context.Context, data url.Values) (*BudgetListRe
 	return budgetResp, nil
 }
 
-func (b *BudgetService) Accounts(ctx context.Context, data url.Values) (*AccountListResponse, error) {
-	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+b.id+"/accounts?"+data.Encode(), nil)
+func (b *PlanService) Accounts(ctx context.Context, data url.Values) (*AccountListResponse, error) {
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/plans/"+b.id+"/accounts?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -462,8 +555,8 @@ func (b *BudgetService) Accounts(ctx context.Context, data url.Values) (*Account
 	return accountResp, nil
 }
 
-func (b *BudgetService) Transactions(ctx context.Context, data url.Values) (*TransactionListResponse, error) {
-	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+b.id+"/transactions?"+data.Encode(), nil)
+func (b *PlanService) Transactions(ctx context.Context, data url.Values) (*TransactionListResponse, error) {
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/plans/"+b.id+"/transactions?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -474,8 +567,8 @@ func (b *BudgetService) Transactions(ctx context.Context, data url.Values) (*Tra
 	return transactionResp, nil
 }
 
-func (b *BudgetService) ScheduledTransactions(ctx context.Context, data url.Values) (*ScheduledTransactionListResponse, error) {
-	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+b.id+"/scheduled_transactions?"+data.Encode(), nil)
+func (b *PlanService) ScheduledTransactions(ctx context.Context, data url.Values) (*ScheduledTransactionListResponse, error) {
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/plans/"+b.id+"/scheduled_transactions?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -486,8 +579,8 @@ func (b *BudgetService) ScheduledTransactions(ctx context.Context, data url.Valu
 	return transactionResp, nil
 }
 
-func (b *BudgetService) Categories(ctx context.Context, data url.Values) (*CategoryListResponse, error) {
-	req, err := b.client.NewRequestWithContext(ctx, "GET", "/budgets/"+b.id+"/categories?"+data.Encode(), nil)
+func (b *PlanService) Categories(ctx context.Context, data url.Values) (*CategoryListResponse, error) {
+	req, err := b.client.NewRequestWithContext(ctx, "GET", "/plans/"+b.id+"/categories?"+data.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -498,12 +591,12 @@ func (b *BudgetService) Categories(ctx context.Context, data url.Values) (*Categ
 	return categoryResp, nil
 }
 
-// GetMonthCategory retrieves a category for a specific budget month.
+// GetMonthCategory retrieves a category for a specific plan month.
 // The month should be in ISO format (e.g., "2024-01-01") or "current" for the current month.
 // Amounts (budgeted, activity, balance) are specific to the requested month.
-func (b *BudgetService) GetMonthCategory(ctx context.Context, month string, categoryID string) (*CategoryResponse, error) {
+func (b *PlanService) GetMonthCategory(ctx context.Context, month string, categoryID string) (*CategoryResponse, error) {
 	resp := new(CategoryResponse)
-	path := "/budgets/" + b.id + "/months/" + month + "/categories/" + categoryID
+	path := "/plans/" + b.id + "/months/" + month + "/categories/" + categoryID
 	err := b.client.MakeRequest(ctx, "GET", path, nil, nil, resp)
 	if err != nil {
 		return nil, err
@@ -514,12 +607,12 @@ func (b *BudgetService) GetMonthCategory(ctx context.Context, month string, cate
 // UpdateMonthCategory updates the budgeted amount for a category in a specific month.
 // The month should be in ISO format (e.g., "2024-01-01") or "current" for the current month.
 // The budgeted amount is in milliunits (e.g., $50.00 = 50000).
-func (b *BudgetService) UpdateMonthCategory(ctx context.Context, month string, categoryID string, budgeted int64) (*SaveCategoryResponse, error) {
+func (b *PlanService) UpdateMonthCategory(ctx context.Context, month string, categoryID string, budgeted int64) (*SaveCategoryResponse, error) {
 	req := &UpdateMonthCategoryRequest{
 		Category: SaveMonthCategory{Budgeted: budgeted},
 	}
 	resp := new(SaveCategoryResponse)
-	path := "/budgets/" + b.id + "/months/" + month + "/categories/" + categoryID
+	path := "/plans/" + b.id + "/months/" + month + "/categories/" + categoryID
 	err := b.client.MakeRequest(ctx, "PATCH", path, nil, req, resp)
 	if err != nil {
 		return nil, err
@@ -539,12 +632,12 @@ type UserResponse struct {
 	} `json:"data"`
 }
 
-// DateFormat represents the date format setting for a budget.
+// DateFormat represents the date format setting for a plan.
 type DateFormat struct {
 	Format string `json:"format"`
 }
 
-// CurrencyFormat represents the currency format setting for a budget.
+// CurrencyFormat represents the currency format setting for a plan.
 type CurrencyFormat struct {
 	ISOCode          string `json:"iso_code"`
 	ExampleFormat    string `json:"example_format"`
@@ -556,18 +649,24 @@ type CurrencyFormat struct {
 	DisplaySymbol    bool   `json:"display_symbol"`
 }
 
-// BudgetSettings represents the settings for a budget.
-type BudgetSettings struct {
+// PlanSettings represents the settings for a plan.
+type PlanSettings struct {
 	DateFormat     DateFormat     `json:"date_format"`
 	CurrencyFormat CurrencyFormat `json:"currency_format"`
 }
 
-// BudgetSettingsResponse wraps the budget settings response.
-type BudgetSettingsResponse struct {
+// BudgetSettings is deprecated. Use PlanSettings.
+type BudgetSettings = PlanSettings
+
+// PlanSettingsResponse wraps the plan settings response.
+type PlanSettingsResponse struct {
 	Data struct {
-		Settings BudgetSettings `json:"settings"`
+		Settings PlanSettings `json:"settings"`
 	} `json:"data"`
 }
+
+// BudgetSettingsResponse is deprecated. Use PlanSettingsResponse.
+type BudgetSettingsResponse = PlanSettingsResponse
 
 // AccountResponse wraps a single account response.
 type AccountResponse struct {
@@ -590,15 +689,45 @@ type CreateAccountRequest struct {
 
 // SaveCategory represents the data for updating a category.
 type SaveCategory struct {
-	Name            string `json:"name,omitempty"`
-	Note            string `json:"note,omitempty"`
-	CategoryGroupID string `json:"category_group_id,omitempty"`
-	GoalTarget      *int64 `json:"goal_target,omitempty"` // The goal target amount in milliunits. Can only be changed if the category already has a goal (goal_type != null).
+	Name                 string `json:"name,omitempty"`
+	Note                 string `json:"note,omitempty"`
+	CategoryGroupID      string `json:"category_group_id,omitempty"`
+	GoalTarget           *int64 `json:"goal_target,omitempty"` // The goal target amount in milliunits.
+	GoalTargetDate       string `json:"goal_target_date,omitempty"`
+	GoalNeedsWholeAmount *bool  `json:"goal_needs_whole_amount,omitempty"`
+}
+
+// CreateCategoryRequest is the request body for creating a category.
+type CreateCategoryRequest struct {
+	Category *SaveCategory `json:"category"`
 }
 
 // UpdateCategoryRequest is the request body for updating a category.
 type UpdateCategoryRequest struct {
 	Category *SaveCategory `json:"category"`
+}
+
+// SaveCategoryGroup represents the data for creating or updating a category group.
+type SaveCategoryGroup struct {
+	Name string `json:"name"` // Maximum 50 characters.
+}
+
+// CreateCategoryGroupRequest is the request body for creating a category group.
+type CreateCategoryGroupRequest struct {
+	CategoryGroup *SaveCategoryGroup `json:"category_group"`
+}
+
+// UpdateCategoryGroupRequest is the request body for updating a category group.
+type UpdateCategoryGroupRequest struct {
+	CategoryGroup *SaveCategoryGroup `json:"category_group"`
+}
+
+// SaveCategoryGroupResponse wraps the response from creating or updating a category group.
+type SaveCategoryGroupResponse struct {
+	Data struct {
+		CategoryGroup   *CategoryGroup `json:"category_group"`
+		ServerKnowledge int64          `json:"server_knowledge"`
+	} `json:"data"`
 }
 
 // Payee represents a YNAB payee.
@@ -665,16 +794,24 @@ type PayeeLocationListResponse struct {
 	} `json:"data"`
 }
 
-// MonthSummary represents a budget month summary without category details.
+// MonthSummary represents a plan month summary without category details.
 type MonthSummary struct {
-	Month        string `json:"month"`
-	Note         string `json:"note"`
-	Income       int64  `json:"income"`         // The total amount of transactions categorized to 'Inflow: Ready to Assign' in the month
-	Budgeted     int64  `json:"budgeted"`       // The total amount budgeted in the month
-	Activity     int64  `json:"activity"`       // The total amount of transactions in the month, excluding those categorized to 'Inflow: Ready to Assign'
-	ToBeBudgeted int64  `json:"to_be_budgeted"` // The available amount for 'Ready to Assign'
-	AgeOfMoney   *int   `json:"age_of_money"`   // The Age of Money as of the month
-	Deleted      bool   `json:"deleted"`
+	Month                 string  `json:"month"`
+	Note                  string  `json:"note"`
+	Income                int64   `json:"income"` // The total amount of transactions categorized to 'Inflow: Ready to Assign' in the month
+	IncomeFormatted       string  `json:"income_formatted"`
+	IncomeCurrency        float64 `json:"income_currency"`
+	Budgeted              int64   `json:"budgeted"` // The total amount assigned in the month
+	BudgetedFormatted     string  `json:"budgeted_formatted"`
+	BudgetedCurrency      float64 `json:"budgeted_currency"`
+	Activity              int64   `json:"activity"` // The total amount of transactions in the month, excluding those categorized to 'Inflow: Ready to Assign'
+	ActivityFormatted     string  `json:"activity_formatted"`
+	ActivityCurrency      float64 `json:"activity_currency"`
+	ToBeBudgeted          int64   `json:"to_be_budgeted"` // The available amount for 'Ready to Assign'
+	ToBeBudgetedFormatted string  `json:"to_be_budgeted_formatted"`
+	ToBeBudgetedCurrency  float64 `json:"to_be_budgeted_currency"`
+	AgeOfMoney            *int    `json:"age_of_money"` // The Age of Money as of the month
+	Deleted               bool    `json:"deleted"`
 }
 
 // MonthSummaryListResponse wraps the month summary list response.
@@ -692,12 +829,54 @@ type MonthDetailResponse struct {
 	} `json:"data"`
 }
 
+// MoneyMovement represents a category money movement in a plan.
+type MoneyMovement struct {
+	ID                   string           `json:"id"`
+	Month                NullDate         `json:"month"`
+	MovedAt              types.NullString `json:"moved_at"`
+	Note                 types.NullString `json:"note"`
+	MoneyMovementGroupID types.NullString `json:"money_movement_group_id"`
+	PerformedByUserID    types.NullString `json:"performed_by_user_id"`
+	FromCategoryID       types.NullString `json:"from_category_id"`
+	ToCategoryID         types.NullString `json:"to_category_id"`
+	Amount               int64            `json:"amount"`
+	AmountFormatted      string           `json:"amount_formatted"`
+	AmountCurrency       float64          `json:"amount_currency"`
+}
+
+// MoneyMovementsResponse wraps the money movements list response.
+type MoneyMovementsResponse struct {
+	Data struct {
+		MoneyMovements  []*MoneyMovement `json:"money_movements"`
+		ServerKnowledge int64            `json:"server_knowledge"`
+	} `json:"data"`
+}
+
+// MoneyMovementGroup represents a group of money movements in a plan.
+type MoneyMovementGroup struct {
+	ID                string           `json:"id"`
+	GroupCreatedAt    string           `json:"group_created_at"`
+	Month             Date             `json:"month"`
+	Note              types.NullString `json:"note"`
+	PerformedByUserID types.NullString `json:"performed_by_user_id"`
+}
+
+// MoneyMovementGroupsResponse wraps the money movement groups list response.
+type MoneyMovementGroupsResponse struct {
+	Data struct {
+		MoneyMovementGroups []*MoneyMovementGroup `json:"money_movement_groups"`
+		ServerKnowledge     int64                 `json:"server_knowledge"`
+	} `json:"data"`
+}
+
 // HybridTransaction represents a transaction that may be either a regular
 // transaction or a subtransaction, returned by payee/category/month transaction endpoints.
 type HybridTransaction struct {
 	ID                      string           `json:"id"`
 	Date                    Date             `json:"date"`   // The transaction date in ISO format (e.g. 2016-12-01)
 	Amount                  int64            `json:"amount"` // The transaction amount in milliunits format
+	AmountFormatted         string           `json:"amount_formatted"`
+	AmountCurrency          float64          `json:"amount_currency"`
 	Memo                    string           `json:"memo"`
 	Cleared                 ClearedStatus    `json:"cleared"`
 	Approved                bool             `json:"approved"` // Whether or not the transaction is approved
@@ -772,38 +951,41 @@ type UpdateScheduledTransactionRequest struct {
 	ScheduledTransaction *SaveScheduledTransaction `json:"scheduled_transaction"`
 }
 
-type BudgetService struct {
+type PlanService struct {
 	client *Client
-	// the budget ID
+	// the plan ID
 	id string
 }
+
+// BudgetService is deprecated. Use PlanService.
+type BudgetService = PlanService
 
 func (c *Client) PutResource(ctx context.Context, pathPart string, sid string, req any, resp any) error {
 	sidPart := strings.Join([]string{pathPart, sid}, "/")
 	return c.MakeRequest(ctx, "PUT", sidPart, nil, req, resp)
 }
 
-func (b *BudgetService) CreateTransaction(ctx context.Context, req *CreateTransactionRequest) (*CreateTransactionResponse, error) {
+func (b *PlanService) CreateTransaction(ctx context.Context, req *CreateTransactionRequest) (*CreateTransactionResponse, error) {
 	resp := new(CreateTransactionResponse)
-	err := b.client.MakeRequest(ctx, "POST", "/budgets/"+b.id+"/transactions", nil, req, resp)
+	err := b.client.MakeRequest(ctx, "POST", "/plans/"+b.id+"/transactions", nil, req, resp)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-func (b *BudgetService) UpdateTransaction(ctx context.Context, transactionID string, req *UpdateTransactionRequest) (*TransactionResponse, error) {
+func (b *PlanService) UpdateTransaction(ctx context.Context, transactionID string, req *UpdateTransactionRequest) (*TransactionResponse, error) {
 	resp := new(TransactionResponse)
-	err := b.client.PutResource(ctx, "/budgets/"+b.id+"/transactions", transactionID, req, resp)
+	err := b.client.PutResource(ctx, "/plans/"+b.id+"/transactions", transactionID, req, resp)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-func (b *BudgetService) DeleteTransaction(ctx context.Context, transactionID string) (*TransactionResponse, error) {
+func (b *PlanService) DeleteTransaction(ctx context.Context, transactionID string) (*TransactionResponse, error) {
 	resp := new(TransactionResponse)
-	err := b.client.MakeRequest(ctx, "DELETE", "/budgets/"+b.id+"/transactions/"+transactionID, nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "DELETE", "/plans/"+b.id+"/transactions/"+transactionID, nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -820,20 +1002,20 @@ func (c *Client) GetUser(ctx context.Context) (*UserResponse, error) {
 	return resp, nil
 }
 
-// GetSettings returns the settings for this budget.
-func (b *BudgetService) GetSettings(ctx context.Context) (*BudgetSettingsResponse, error) {
+// GetSettings returns the settings for this plan.
+func (b *PlanService) GetSettings(ctx context.Context) (*BudgetSettingsResponse, error) {
 	resp := new(BudgetSettingsResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/settings", nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/settings", nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-// CreateAccount creates a new account in this budget.
-func (b *BudgetService) CreateAccount(ctx context.Context, req *CreateAccountRequest) (*AccountResponse, error) {
+// CreateAccount creates a new account in this plan.
+func (b *PlanService) CreateAccount(ctx context.Context, req *CreateAccountRequest) (*AccountResponse, error) {
 	resp := new(AccountResponse)
-	err := b.client.MakeRequest(ctx, "POST", "/budgets/"+b.id+"/accounts", nil, req, resp)
+	err := b.client.MakeRequest(ctx, "POST", "/plans/"+b.id+"/accounts", nil, req, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -841,9 +1023,9 @@ func (b *BudgetService) CreateAccount(ctx context.Context, req *CreateAccountReq
 }
 
 // GetAccount returns a single account by ID.
-func (b *BudgetService) GetAccount(ctx context.Context, accountID string) (*AccountResponse, error) {
+func (b *PlanService) GetAccount(ctx context.Context, accountID string) (*AccountResponse, error) {
 	resp := new(AccountResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/accounts/"+accountID, nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/accounts/"+accountID, nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -851,9 +1033,19 @@ func (b *BudgetService) GetAccount(ctx context.Context, accountID string) (*Acco
 }
 
 // GetCategory returns a single category by ID.
-func (b *BudgetService) GetCategory(ctx context.Context, categoryID string) (*CategoryResponse, error) {
+func (b *PlanService) GetCategory(ctx context.Context, categoryID string) (*CategoryResponse, error) {
 	resp := new(CategoryResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/categories/"+categoryID, nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/categories/"+categoryID, nil, nil, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// CreateCategory creates a category in this plan.
+func (b *PlanService) CreateCategory(ctx context.Context, req *CreateCategoryRequest) (*SaveCategoryResponse, error) {
+	resp := new(SaveCategoryResponse)
+	err := b.client.MakeRequest(ctx, "POST", "/plans/"+b.id+"/categories", nil, req, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -861,19 +1053,39 @@ func (b *BudgetService) GetCategory(ctx context.Context, categoryID string) (*Ca
 }
 
 // UpdateCategory updates a category.
-func (b *BudgetService) UpdateCategory(ctx context.Context, categoryID string, req *UpdateCategoryRequest) (*SaveCategoryResponse, error) {
+func (b *PlanService) UpdateCategory(ctx context.Context, categoryID string, req *UpdateCategoryRequest) (*SaveCategoryResponse, error) {
 	resp := new(SaveCategoryResponse)
-	err := b.client.MakeRequest(ctx, "PATCH", "/budgets/"+b.id+"/categories/"+categoryID, nil, req, resp)
+	err := b.client.MakeRequest(ctx, "PATCH", "/plans/"+b.id+"/categories/"+categoryID, nil, req, resp)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-// Payees returns the list of payees for this budget.
-func (b *BudgetService) Payees(ctx context.Context, data url.Values) (*PayeeListResponse, error) {
+// CreateCategoryGroup creates a category group in this plan.
+func (b *PlanService) CreateCategoryGroup(ctx context.Context, req *CreateCategoryGroupRequest) (*SaveCategoryGroupResponse, error) {
+	resp := new(SaveCategoryGroupResponse)
+	err := b.client.MakeRequest(ctx, "POST", "/plans/"+b.id+"/category_groups", nil, req, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// UpdateCategoryGroup updates a category group.
+func (b *PlanService) UpdateCategoryGroup(ctx context.Context, categoryGroupID string, req *UpdateCategoryGroupRequest) (*SaveCategoryGroupResponse, error) {
+	resp := new(SaveCategoryGroupResponse)
+	err := b.client.MakeRequest(ctx, "PATCH", "/plans/"+b.id+"/category_groups/"+categoryGroupID, nil, req, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// Payees returns the list of payees for this plan.
+func (b *PlanService) Payees(ctx context.Context, data url.Values) (*PayeeListResponse, error) {
 	resp := new(PayeeListResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/payees", data, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/payees", data, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -881,9 +1093,9 @@ func (b *BudgetService) Payees(ctx context.Context, data url.Values) (*PayeeList
 }
 
 // GetPayee returns a single payee by ID.
-func (b *BudgetService) GetPayee(ctx context.Context, payeeID string) (*PayeeResponse, error) {
+func (b *PlanService) GetPayee(ctx context.Context, payeeID string) (*PayeeResponse, error) {
 	resp := new(PayeeResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/payees/"+payeeID, nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/payees/"+payeeID, nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -891,19 +1103,19 @@ func (b *BudgetService) GetPayee(ctx context.Context, payeeID string) (*PayeeRes
 }
 
 // UpdatePayee updates a payee.
-func (b *BudgetService) UpdatePayee(ctx context.Context, payeeID string, req *UpdatePayeeRequest) (*SavePayeeResponse, error) {
+func (b *PlanService) UpdatePayee(ctx context.Context, payeeID string, req *UpdatePayeeRequest) (*SavePayeeResponse, error) {
 	resp := new(SavePayeeResponse)
-	err := b.client.MakeRequest(ctx, "PATCH", "/budgets/"+b.id+"/payees/"+payeeID, nil, req, resp)
+	err := b.client.MakeRequest(ctx, "PATCH", "/plans/"+b.id+"/payees/"+payeeID, nil, req, resp)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-// PayeeLocations returns all payee locations for this budget.
-func (b *BudgetService) PayeeLocations(ctx context.Context) (*PayeeLocationListResponse, error) {
+// PayeeLocations returns all payee locations for this plan.
+func (b *PlanService) PayeeLocations(ctx context.Context) (*PayeeLocationListResponse, error) {
 	resp := new(PayeeLocationListResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/payee_locations", nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/payee_locations", nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -911,9 +1123,9 @@ func (b *BudgetService) PayeeLocations(ctx context.Context) (*PayeeLocationListR
 }
 
 // GetPayeeLocation returns a single payee location by ID.
-func (b *BudgetService) GetPayeeLocation(ctx context.Context, locationID string) (*PayeeLocationResponse, error) {
+func (b *PlanService) GetPayeeLocation(ctx context.Context, locationID string) (*PayeeLocationResponse, error) {
 	resp := new(PayeeLocationResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/payee_locations/"+locationID, nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/payee_locations/"+locationID, nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -921,30 +1133,70 @@ func (b *BudgetService) GetPayeeLocation(ctx context.Context, locationID string)
 }
 
 // PayeeLocationsByPayee returns all payee locations for a specific payee.
-func (b *BudgetService) PayeeLocationsByPayee(ctx context.Context, payeeID string) (*PayeeLocationListResponse, error) {
+func (b *PlanService) PayeeLocationsByPayee(ctx context.Context, payeeID string) (*PayeeLocationListResponse, error) {
 	resp := new(PayeeLocationListResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/payees/"+payeeID+"/payee_locations", nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/payees/"+payeeID+"/payee_locations", nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-// Months returns the list of budget months for this budget.
-func (b *BudgetService) Months(ctx context.Context, data url.Values) (*MonthSummaryListResponse, error) {
+// Months returns the list of plan months for this plan.
+func (b *PlanService) Months(ctx context.Context, data url.Values) (*MonthSummaryListResponse, error) {
 	resp := new(MonthSummaryListResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/months", data, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/months", data, nil, resp)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-// GetMonth returns a single budget month.
+// GetMonth returns a single plan month.
 // The month should be in ISO format (e.g., "2024-01-01") or "current".
-func (b *BudgetService) GetMonth(ctx context.Context, month string) (*MonthDetailResponse, error) {
+func (b *PlanService) GetMonth(ctx context.Context, month string) (*MonthDetailResponse, error) {
 	resp := new(MonthDetailResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/months/"+month, nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/months/"+month, nil, nil, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// MoneyMovements returns all money movements for this plan.
+func (b *PlanService) MoneyMovements(ctx context.Context, data url.Values) (*MoneyMovementsResponse, error) {
+	resp := new(MoneyMovementsResponse)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/money_movements", data, nil, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// MonthMoneyMovements returns money movements for a specific month.
+func (b *PlanService) MonthMoneyMovements(ctx context.Context, month string, data url.Values) (*MoneyMovementsResponse, error) {
+	resp := new(MoneyMovementsResponse)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/months/"+month+"/money_movements", data, nil, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// MoneyMovementGroups returns all money movement groups for this plan.
+func (b *PlanService) MoneyMovementGroups(ctx context.Context, data url.Values) (*MoneyMovementGroupsResponse, error) {
+	resp := new(MoneyMovementGroupsResponse)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/money_movement_groups", data, nil, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// MonthMoneyMovementGroups returns money movement groups for a specific month.
+func (b *PlanService) MonthMoneyMovementGroups(ctx context.Context, month string, data url.Values) (*MoneyMovementGroupsResponse, error) {
+	resp := new(MoneyMovementGroupsResponse)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/months/"+month+"/money_movement_groups", data, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -952,9 +1204,9 @@ func (b *BudgetService) GetMonth(ctx context.Context, month string) (*MonthDetai
 }
 
 // GetTransaction returns a single transaction by ID.
-func (b *BudgetService) GetTransaction(ctx context.Context, transactionID string) (*TransactionResponse, error) {
+func (b *PlanService) GetTransaction(ctx context.Context, transactionID string) (*TransactionResponse, error) {
 	resp := new(TransactionResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/transactions/"+transactionID, nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/transactions/"+transactionID, nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -962,9 +1214,9 @@ func (b *BudgetService) GetTransaction(ctx context.Context, transactionID string
 }
 
 // UpdateTransactions bulk-updates multiple transactions.
-func (b *BudgetService) UpdateTransactions(ctx context.Context, req *UpdateTransactionsRequest) (*CreateTransactionResponse, error) {
+func (b *PlanService) UpdateTransactions(ctx context.Context, req *UpdateTransactionsRequest) (*CreateTransactionResponse, error) {
 	resp := new(CreateTransactionResponse)
-	err := b.client.MakeRequest(ctx, "PATCH", "/budgets/"+b.id+"/transactions", nil, req, resp)
+	err := b.client.MakeRequest(ctx, "PATCH", "/plans/"+b.id+"/transactions", nil, req, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -972,9 +1224,9 @@ func (b *BudgetService) UpdateTransactions(ctx context.Context, req *UpdateTrans
 }
 
 // ImportTransactions imports transactions from linked accounts.
-func (b *BudgetService) ImportTransactions(ctx context.Context) (*TransactionsImportResponse, error) {
+func (b *PlanService) ImportTransactions(ctx context.Context) (*TransactionsImportResponse, error) {
 	resp := new(TransactionsImportResponse)
-	err := b.client.MakeRequest(ctx, "POST", "/budgets/"+b.id+"/transactions/import", nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "POST", "/plans/"+b.id+"/transactions/import", nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -982,9 +1234,9 @@ func (b *BudgetService) ImportTransactions(ctx context.Context) (*TransactionsIm
 }
 
 // AccountTransactions returns the transactions for a specific account.
-func (b *BudgetService) AccountTransactions(ctx context.Context, accountID string, data url.Values) (*TransactionListResponse, error) {
+func (b *PlanService) AccountTransactions(ctx context.Context, accountID string, data url.Values) (*TransactionListResponse, error) {
 	resp := new(TransactionListResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/accounts/"+accountID+"/transactions", data, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/accounts/"+accountID+"/transactions", data, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -992,9 +1244,9 @@ func (b *BudgetService) AccountTransactions(ctx context.Context, accountID strin
 }
 
 // CategoryTransactions returns the transactions for a specific category.
-func (b *BudgetService) CategoryTransactions(ctx context.Context, categoryID string, data url.Values) (*HybridTransactionListResponse, error) {
+func (b *PlanService) CategoryTransactions(ctx context.Context, categoryID string, data url.Values) (*HybridTransactionListResponse, error) {
 	resp := new(HybridTransactionListResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/categories/"+categoryID+"/transactions", data, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/categories/"+categoryID+"/transactions", data, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -1002,9 +1254,9 @@ func (b *BudgetService) CategoryTransactions(ctx context.Context, categoryID str
 }
 
 // PayeeTransactions returns the transactions for a specific payee.
-func (b *BudgetService) PayeeTransactions(ctx context.Context, payeeID string, data url.Values) (*HybridTransactionListResponse, error) {
+func (b *PlanService) PayeeTransactions(ctx context.Context, payeeID string, data url.Values) (*HybridTransactionListResponse, error) {
 	resp := new(HybridTransactionListResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/payees/"+payeeID+"/transactions", data, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/payees/"+payeeID+"/transactions", data, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -1012,9 +1264,9 @@ func (b *BudgetService) PayeeTransactions(ctx context.Context, payeeID string, d
 }
 
 // MonthTransactions returns the transactions for a specific month.
-func (b *BudgetService) MonthTransactions(ctx context.Context, month string, data url.Values) (*HybridTransactionListResponse, error) {
+func (b *PlanService) MonthTransactions(ctx context.Context, month string, data url.Values) (*HybridTransactionListResponse, error) {
 	resp := new(HybridTransactionListResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/months/"+month+"/transactions", data, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/months/"+month+"/transactions", data, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -1022,9 +1274,9 @@ func (b *BudgetService) MonthTransactions(ctx context.Context, month string, dat
 }
 
 // CreateScheduledTransaction creates a new scheduled transaction.
-func (b *BudgetService) CreateScheduledTransaction(ctx context.Context, req *CreateScheduledTransactionRequest) (*ScheduledTransactionResponse, error) {
+func (b *PlanService) CreateScheduledTransaction(ctx context.Context, req *CreateScheduledTransactionRequest) (*ScheduledTransactionResponse, error) {
 	resp := new(ScheduledTransactionResponse)
-	err := b.client.MakeRequest(ctx, "POST", "/budgets/"+b.id+"/scheduled_transactions", nil, req, resp)
+	err := b.client.MakeRequest(ctx, "POST", "/plans/"+b.id+"/scheduled_transactions", nil, req, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -1032,9 +1284,9 @@ func (b *BudgetService) CreateScheduledTransaction(ctx context.Context, req *Cre
 }
 
 // GetScheduledTransaction returns a single scheduled transaction by ID.
-func (b *BudgetService) GetScheduledTransaction(ctx context.Context, scheduledTransactionID string) (*ScheduledTransactionResponse, error) {
+func (b *PlanService) GetScheduledTransaction(ctx context.Context, scheduledTransactionID string) (*ScheduledTransactionResponse, error) {
 	resp := new(ScheduledTransactionResponse)
-	err := b.client.MakeRequest(ctx, "GET", "/budgets/"+b.id+"/scheduled_transactions/"+scheduledTransactionID, nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "GET", "/plans/"+b.id+"/scheduled_transactions/"+scheduledTransactionID, nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -1042,9 +1294,9 @@ func (b *BudgetService) GetScheduledTransaction(ctx context.Context, scheduledTr
 }
 
 // UpdateScheduledTransaction updates an existing scheduled transaction.
-func (b *BudgetService) UpdateScheduledTransaction(ctx context.Context, scheduledTransactionID string, req *UpdateScheduledTransactionRequest) (*ScheduledTransactionResponse, error) {
+func (b *PlanService) UpdateScheduledTransaction(ctx context.Context, scheduledTransactionID string, req *UpdateScheduledTransactionRequest) (*ScheduledTransactionResponse, error) {
 	resp := new(ScheduledTransactionResponse)
-	err := b.client.PutResource(ctx, "/budgets/"+b.id+"/scheduled_transactions", scheduledTransactionID, req, resp)
+	err := b.client.PutResource(ctx, "/plans/"+b.id+"/scheduled_transactions", scheduledTransactionID, req, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -1052,9 +1304,9 @@ func (b *BudgetService) UpdateScheduledTransaction(ctx context.Context, schedule
 }
 
 // DeleteScheduledTransaction deletes a scheduled transaction.
-func (b *BudgetService) DeleteScheduledTransaction(ctx context.Context, scheduledTransactionID string) (*ScheduledTransactionResponse, error) {
+func (b *PlanService) DeleteScheduledTransaction(ctx context.Context, scheduledTransactionID string) (*ScheduledTransactionResponse, error) {
 	resp := new(ScheduledTransactionResponse)
-	err := b.client.MakeRequest(ctx, "DELETE", "/budgets/"+b.id+"/scheduled_transactions/"+scheduledTransactionID, nil, nil, resp)
+	err := b.client.MakeRequest(ctx, "DELETE", "/plans/"+b.id+"/scheduled_transactions/"+scheduledTransactionID, nil, nil, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -1158,13 +1410,14 @@ func (c *Client) SetUserAgent(userAgent string) {
 }
 
 func NewClient(token string) *Client {
-	client := restclient.NewBearerClient(token, "https://api.youneedabudget.com/v1")
+	client := restclient.NewBearerClient(token, "https://api.ynab.com/v1")
 	c := &Client{Client: client}
-	c.Budgets = func(id string) *BudgetService {
-		return &BudgetService{
+	c.Plans = func(id string) *PlanService {
+		return &PlanService{
 			client: c,
 			id:     id,
 		}
 	}
+	c.Budgets = c.Plans
 	return c
 }

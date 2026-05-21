@@ -1,5 +1,85 @@
 # Changelog & Upgrade Guide
 
+### Unreleased
+
+Update the bundled YNAB OpenAPI spec from API version 1.77.0 to 1.84.0.
+YNAB now refers to budgets as plans in the API, and the client now sends
+requests to `/plans` endpoints.
+
+Upgrade notes:
+
+Most existing code should continue to compile because the old `Budget` names
+remain as deprecated compatibility aliases or wrappers. Existing calls such as
+`client.Budgets(id).Transactions(ctx, data)` now send requests to
+`/plans/{id}/transactions`.
+
+New code should use the Plan names. Recommended updates:
+
+```go
+// Before
+budgetResp, err := client.GetBudgets(ctx, data)
+for _, budget := range budgetResp.Data.Budgets {
+	// ...
+}
+
+// After
+planResp, err := client.GetPlans(ctx, data)
+for _, plan := range planResp.Data.Plans {
+	// ...
+}
+```
+
+```go
+// Before
+txns, err := client.Budgets(budgetID).Transactions(ctx, data)
+
+// After
+txns, err := client.Plans(planID).Transactions(ctx, data)
+```
+
+```go
+// Before
+budgetResp, err := client.Budgets(budgetID).GetBudget(ctx)
+settings, err := client.Budgets(budgetID).GetSettings(ctx)
+
+// After
+planResp, err := client.Plans(planID).GetPlan(ctx)
+settings, err := client.Plans(planID).GetSettings(ctx)
+```
+
+If your code unmarshals API JSON directly, update response keys from
+`budgets`/`budget` to `plans`/`plan`. The compatibility wrappers in this client
+already handle the new JSON keys for `GetBudgets` and `GetBudget`.
+
+New Plan API surface:
+
+- Add `Client.Plans`, `Client.GetPlans`, `PlanService`, `Plan`,
+  `PlanDetail`, `PlanSettings`, and related response wrappers.
+- Keep the old `Budget` names as deprecated compatibility aliases or wrappers
+  where practical. Existing calls such as `client.Budgets(id).Transactions`
+  now target `/plans/{id}/transactions`.
+- Change budget list/detail compatibility responses to parse the new `plans`
+  and `plan` JSON keys.
+
+New endpoints and fields:
+
+- Add money movement endpoints:
+  `MoneyMovements`, `MonthMoneyMovements`, `MoneyMovementGroups`, and
+  `MonthMoneyMovementGroups`.
+- Add category and category group create/update helpers:
+  `CreateCategory`, `CreateCategoryGroup`, and `UpdateCategoryGroup`.
+- Add formatted and decimal currency fields for accounts, categories, months,
+  transactions, scheduled transactions, and money movements.
+- Add new category fields from the current spec, including `Internal`,
+  `OriginalCategoryGroupID`, `GoalTargetDate`, and formatted/currency goal
+  amounts.
+
+Other changes:
+
+- Change the default API base URL from `https://api.youneedabudget.com/v1` to
+  `https://api.ynab.com/v1`.
+- Make `make update-spec` show curl errors and follow redirects.
+
 ### v1.6.0 (2026-02-26)
 
 Add missing fields to structs to match the YNAB OpenAPI spec.

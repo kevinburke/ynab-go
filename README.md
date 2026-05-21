@@ -3,6 +3,10 @@
 A Go client for the [YNAB (You Need a Budget) API](https://api.ynab.com). All
 API endpoints and response fields are supported.
 
+YNAB now refers to budgets as plans in the API. New code should use
+`Client.Plans`, `Client.GetPlans`, and the `Plan` types. The old `Budget`
+names remain as compatibility aliases where practical.
+
 ### Age of Money
 
 This command will print out more information about how old your money is.

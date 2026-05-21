@@ -10,7 +10,7 @@ import (
 	"github.com/kevinburke/ynab-go"
 )
 
-func ExampleBudgetService_CreateTransaction() {
+func ExamplePlanService_CreateTransaction() {
 	client := ynab.NewClient("your-api-token")
 
 	// Create a normal expense transaction
@@ -25,7 +25,7 @@ func ExampleBudgetService_CreateTransaction() {
 		Approved:   true,
 	}
 
-	resp, err := client.Budgets("budget-id").CreateTransaction(
+	resp, err := client.Plans("plan-id").CreateTransaction(
 		context.Background(),
 		&ynab.CreateTransactionRequest{Transaction: txn},
 	)
@@ -36,7 +36,7 @@ func ExampleBudgetService_CreateTransaction() {
 	fmt.Printf("Created transaction: %s\n", resp.Data.Transaction.ID)
 }
 
-func ExampleBudgetService_UpdateTransaction() {
+func ExamplePlanService_UpdateTransaction() {
 	client := ynab.NewClient("your-api-token")
 
 	// Update an existing transaction's memo and category
@@ -46,7 +46,7 @@ func ExampleBudgetService_UpdateTransaction() {
 		CategoryID: types.NullString{String: "new-category-id", Valid: true},
 	}
 
-	resp, err := client.Budgets("budget-id").UpdateTransaction(
+	resp, err := client.Plans("plan-id").UpdateTransaction(
 		context.Background(),
 		"transaction-id",
 		&ynab.UpdateTransactionRequest{Transaction: update},
@@ -62,7 +62,7 @@ func ExampleNewTransferTransaction() {
 	client := ynab.NewClient("your-api-token")
 
 	// First, get the accounts to find the transfer_payee_id
-	accounts, err := client.Budgets("budget-id").Accounts(context.Background(), nil)
+	accounts, err := client.Plans("plan-id").Accounts(context.Background(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func ExampleNewTransferTransaction() {
 		log.Fatal(err)
 	}
 
-	resp, err := client.Budgets("budget-id").CreateTransaction(
+	resp, err := client.Plans("plan-id").CreateTransaction(
 		context.Background(),
 		&ynab.CreateTransactionRequest{Transaction: txn},
 	)
@@ -112,7 +112,7 @@ func ExampleUpdateTransactionToTransfer() {
 
 	// Get transactions to find the one we want to convert to a transfer
 	// (e.g., an ATM withdrawal that should actually be a transfer to cash account)
-	txnResp, err := client.Budgets("budget-id").Transactions(ctx, nil)
+	txnResp, err := client.Plans("plan-id").Transactions(ctx, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func ExampleUpdateTransactionToTransfer() {
 	}
 
 	// Get the target account for the transfer
-	accounts, err := client.Budgets("budget-id").Accounts(ctx, nil)
+	accounts, err := client.Plans("plan-id").Accounts(ctx, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func ExampleUpdateTransactionToTransfer() {
 		log.Fatal(err)
 	}
 
-	resp, err := client.Budgets("budget-id").UpdateTransaction(
+	resp, err := client.Plans("plan-id").UpdateTransaction(
 		ctx,
 		existingTxn.ID,
 		&ynab.UpdateTransactionRequest{Transaction: update},
