@@ -65,7 +65,7 @@ func TestUserAgentHeader(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedUserAgent = r.Header.Get("User-Agent")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"data": {"budgets": []}}`))
+		w.Write([]byte(`{"data": {"plans": []}}`))
 	}))
 	defer server.Close()
 
@@ -185,7 +185,7 @@ func TestUpdateTransaction(t *testing.T) {
 		t.Errorf("expected PUT method, got %s", receivedMethod)
 	}
 
-	expectedPath := "/budgets/budget-123/transactions/txn-456"
+	expectedPath := "/plans/budget-123/transactions/txn-456"
 	if receivedPath != expectedPath {
 		t.Errorf("expected path %s, got %s", expectedPath, receivedPath)
 	}
@@ -288,7 +288,7 @@ func TestCreateTransaction(t *testing.T) {
 		t.Errorf("expected POST method, got %s", receivedMethod)
 	}
 
-	expectedPath := "/budgets/budget-123/transactions"
+	expectedPath := "/plans/budget-123/transactions"
 	if receivedPath != expectedPath {
 		t.Errorf("expected path %s, got %s", expectedPath, receivedPath)
 	}
@@ -375,7 +375,7 @@ func TestDeleteTransaction(t *testing.T) {
 		t.Errorf("expected DELETE method, got %s", receivedMethod)
 	}
 
-	expectedPath := "/budgets/budget-123/transactions/txn-456"
+	expectedPath := "/plans/budget-123/transactions/txn-456"
 	if receivedPath != expectedPath {
 		t.Errorf("expected path %s, got %s", expectedPath, receivedPath)
 	}
@@ -394,7 +394,7 @@ func TestCustomUserAgent(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedUserAgent = r.Header.Get("User-Agent")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"data": {"budgets": []}}`))
+		w.Write([]byte(`{"data": {"plans": []}}`))
 	}))
 	defer server.Close()
 
@@ -797,6 +797,80 @@ func TestGetUser(t *testing.T) {
 	}
 }
 
+func TestGetPlans(t *testing.T) {
+	var receivedMethod, receivedPath, receivedQuery string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		receivedQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"plans": [{"id": "plan-123", "name": "Personal"}], "default_plan": {"id": "plan-123", "name": "Personal"}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.GetPlans(context.Background(), map[string][]string{"include_accounts": {"true"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/plans" {
+		t.Errorf("expected /plans, got %s", receivedPath)
+	}
+	if receivedQuery != "include_accounts=true" {
+		t.Errorf("expected include_accounts=true, got %s", receivedQuery)
+	}
+	if len(resp.Data.Plans) != 1 {
+		t.Fatalf("expected 1 plan, got %d", len(resp.Data.Plans))
+	}
+	if resp.Data.Plans[0].ID != "plan-123" {
+		t.Errorf("expected plan ID plan-123, got %s", resp.Data.Plans[0].ID)
+	}
+	if resp.Data.DefaultPlan == nil || resp.Data.DefaultPlan.ID != "plan-123" {
+		t.Errorf("expected default plan plan-123, got %#v", resp.Data.DefaultPlan)
+	}
+}
+
+func TestGetBudgetsCompatibilityUsesPlans(t *testing.T) {
+	var receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"plans": [{"id": "plan-123", "name": "Personal"}], "default_plan": {"id": "plan-123", "name": "Personal"}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.GetBudgets(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedPath != "/plans" {
+		t.Errorf("expected /plans, got %s", receivedPath)
+	}
+	if len(resp.Data.Budgets) != 1 {
+		t.Fatalf("expected 1 budget compatibility value, got %d", len(resp.Data.Budgets))
+	}
+	if resp.Data.Budgets[0].ID != "plan-123" {
+		t.Errorf("expected plan ID plan-123, got %s", resp.Data.Budgets[0].ID)
+	}
+	if resp.Data.DefaultBudget == nil || resp.Data.DefaultBudget.ID != "plan-123" {
+		t.Errorf("expected default budget compatibility value plan-123, got %#v", resp.Data.DefaultBudget)
+	}
+}
+
 func TestGetSettings(t *testing.T) {
 	var receivedMethod, receivedPath string
 
@@ -820,8 +894,8 @@ func TestGetSettings(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/settings" {
-		t.Errorf("expected /budgets/budget-123/settings, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/settings" {
+		t.Errorf("expected /plans/budget-123/settings, got %s", receivedPath)
 	}
 	if resp.Data.Settings.DateFormat.Format != "MM/DD/YYYY" {
 		t.Errorf("expected date format MM/DD/YYYY, got %s", resp.Data.Settings.DateFormat.Format)
@@ -871,8 +945,8 @@ func TestCreateAccount(t *testing.T) {
 	if receivedMethod != "POST" {
 		t.Errorf("expected POST, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/accounts" {
-		t.Errorf("expected /budgets/budget-123/accounts, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/accounts" {
+		t.Errorf("expected /plans/budget-123/accounts, got %s", receivedPath)
 	}
 
 	var sentData CreateAccountRequest
@@ -913,8 +987,8 @@ func TestGetAccount(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/accounts/acct-123" {
-		t.Errorf("expected /budgets/budget-123/accounts/acct-123, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/accounts/acct-123" {
+		t.Errorf("expected /plans/budget-123/accounts/acct-123, got %s", receivedPath)
 	}
 	if resp.Data.Account.ID != "acct-123" {
 		t.Errorf("expected account ID acct-123, got %s", resp.Data.Account.ID)
@@ -947,8 +1021,8 @@ func TestGetCategory(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/categories/cat-123" {
-		t.Errorf("expected /budgets/budget-123/categories/cat-123, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/categories/cat-123" {
+		t.Errorf("expected /plans/budget-123/categories/cat-123, got %s", receivedPath)
 	}
 	if resp.Data.Category.ID != "cat-123" {
 		t.Errorf("expected category ID cat-123, got %s", resp.Data.Category.ID)
@@ -991,8 +1065,8 @@ func TestUpdateCategory(t *testing.T) {
 	if receivedMethod != "PATCH" {
 		t.Errorf("expected PATCH, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/categories/cat-123" {
-		t.Errorf("expected /budgets/budget-123/categories/cat-123, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/categories/cat-123" {
+		t.Errorf("expected /plans/budget-123/categories/cat-123, got %s", receivedPath)
 	}
 
 	var sentData UpdateCategoryRequest
@@ -1033,8 +1107,8 @@ func TestPayees(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/payees" {
-		t.Errorf("expected /budgets/budget-123/payees, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/payees" {
+		t.Errorf("expected /plans/budget-123/payees, got %s", receivedPath)
 	}
 	if len(resp.Data.Payees) != 1 {
 		t.Fatalf("expected 1 payee, got %d", len(resp.Data.Payees))
@@ -1070,8 +1144,8 @@ func TestGetPayee(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/payees/payee-1" {
-		t.Errorf("expected /budgets/budget-123/payees/payee-1, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/payees/payee-1" {
+		t.Errorf("expected /plans/budget-123/payees/payee-1, got %s", receivedPath)
 	}
 	if resp.Data.Payee.ID != "payee-1" {
 		t.Errorf("expected payee ID payee-1, got %s", resp.Data.Payee.ID)
@@ -1108,8 +1182,8 @@ func TestUpdatePayee(t *testing.T) {
 	if receivedMethod != "PATCH" {
 		t.Errorf("expected PATCH, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/payees/payee-1" {
-		t.Errorf("expected /budgets/budget-123/payees/payee-1, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/payees/payee-1" {
+		t.Errorf("expected /plans/budget-123/payees/payee-1, got %s", receivedPath)
 	}
 
 	var sentData UpdatePayeeRequest
@@ -1150,8 +1224,8 @@ func TestPayeeLocations(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/payee_locations" {
-		t.Errorf("expected /budgets/budget-123/payee_locations, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/payee_locations" {
+		t.Errorf("expected /plans/budget-123/payee_locations, got %s", receivedPath)
 	}
 	if len(resp.Data.PayeeLocations) != 1 {
 		t.Fatalf("expected 1 location, got %d", len(resp.Data.PayeeLocations))
@@ -1184,8 +1258,8 @@ func TestGetPayeeLocation(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/payee_locations/loc-1" {
-		t.Errorf("expected /budgets/budget-123/payee_locations/loc-1, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/payee_locations/loc-1" {
+		t.Errorf("expected /plans/budget-123/payee_locations/loc-1, got %s", receivedPath)
 	}
 	if resp.Data.PayeeLocation.ID != "loc-1" {
 		t.Errorf("expected location ID loc-1, got %s", resp.Data.PayeeLocation.ID)
@@ -1218,8 +1292,8 @@ func TestPayeeLocationsByPayee(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/payees/payee-1/payee_locations" {
-		t.Errorf("expected /budgets/budget-123/payees/payee-1/payee_locations, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/payees/payee-1/payee_locations" {
+		t.Errorf("expected /plans/budget-123/payees/payee-1/payee_locations, got %s", receivedPath)
 	}
 	if len(resp.Data.PayeeLocations) != 1 {
 		t.Fatalf("expected 1 location, got %d", len(resp.Data.PayeeLocations))
@@ -1252,8 +1326,8 @@ func TestMonths(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/months" {
-		t.Errorf("expected /budgets/budget-123/months, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/months" {
+		t.Errorf("expected /plans/budget-123/months, got %s", receivedPath)
 	}
 	if len(resp.Data.Months) != 1 {
 		t.Fatalf("expected 1 month, got %d", len(resp.Data.Months))
@@ -1289,8 +1363,8 @@ func TestGetMonth(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/months/2024-01-01" {
-		t.Errorf("expected /budgets/budget-123/months/2024-01-01, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/months/2024-01-01" {
+		t.Errorf("expected /plans/budget-123/months/2024-01-01, got %s", receivedPath)
 	}
 	if resp.Data.Month.Note != "January" {
 		t.Errorf("expected note January, got %s", resp.Data.Month.Note)
@@ -1300,6 +1374,94 @@ func TestGetMonth(t *testing.T) {
 	}
 	if resp.Data.Month.Categories[0].Name != "Groceries" {
 		t.Errorf("expected category name Groceries, got %s", resp.Data.Month.Categories[0].Name)
+	}
+}
+
+func TestMoneyMovements(t *testing.T) {
+	var receivedMethod, receivedPath, receivedQuery string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+		receivedQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"money_movements": [{"id": "move-1", "month": "2024-01-01", "moved_at": "2024-01-02T03:04:05Z", "note": "reassign", "money_movement_group_id": "group-1", "performed_by_user_id": "user-1", "from_category_id": "cat-from", "to_category_id": "cat-to", "amount": 25000, "amount_formatted": "$25.00", "amount_currency": 25.0}], "server_knowledge": 123}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Plans("plan-123").MoneyMovements(context.Background(), map[string][]string{"last_knowledge_of_server": {"100"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedMethod != "GET" {
+		t.Errorf("expected GET, got %s", receivedMethod)
+	}
+	if receivedPath != "/plans/plan-123/money_movements" {
+		t.Errorf("expected /plans/plan-123/money_movements, got %s", receivedPath)
+	}
+	if receivedQuery != "last_knowledge_of_server=100" {
+		t.Errorf("expected last_knowledge_of_server=100, got %s", receivedQuery)
+	}
+	if resp.Data.ServerKnowledge != 123 {
+		t.Errorf("expected server knowledge 123, got %d", resp.Data.ServerKnowledge)
+	}
+	if len(resp.Data.MoneyMovements) != 1 {
+		t.Fatalf("expected 1 money movement, got %d", len(resp.Data.MoneyMovements))
+	}
+	movement := resp.Data.MoneyMovements[0]
+	if movement.ID != "move-1" {
+		t.Errorf("expected movement ID move-1, got %s", movement.ID)
+	}
+	if !movement.Month.Valid || movement.Month.Date.String() != "2024-01-01" {
+		t.Errorf("expected movement month 2024-01-01, got %#v", movement.Month)
+	}
+	if movement.AmountFormatted != "$25.00" {
+		t.Errorf("expected formatted amount $25.00, got %s", movement.AmountFormatted)
+	}
+	if movement.AmountCurrency != 25 {
+		t.Errorf("expected currency amount 25, got %v", movement.AmountCurrency)
+	}
+}
+
+func TestMoneyMovementGroupsByMonth(t *testing.T) {
+	var receivedPath string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"money_movement_groups": [{"id": "group-1", "group_created_at": "2024-01-02T03:04:05Z", "month": "2024-01-01", "note": null, "performed_by_user_id": "user-1"}], "server_knowledge": 124}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.Base = server.URL
+
+	resp, err := client.Plans("plan-123").MonthMoneyMovementGroups(context.Background(), "2024-01-01", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if receivedPath != "/plans/plan-123/months/2024-01-01/money_movement_groups" {
+		t.Errorf("expected /plans/plan-123/months/2024-01-01/money_movement_groups, got %s", receivedPath)
+	}
+	if resp.Data.ServerKnowledge != 124 {
+		t.Errorf("expected server knowledge 124, got %d", resp.Data.ServerKnowledge)
+	}
+	if len(resp.Data.MoneyMovementGroups) != 1 {
+		t.Fatalf("expected 1 money movement group, got %d", len(resp.Data.MoneyMovementGroups))
+	}
+	group := resp.Data.MoneyMovementGroups[0]
+	if group.ID != "group-1" {
+		t.Errorf("expected group ID group-1, got %s", group.ID)
+	}
+	if group.Month.String() != "2024-01-01" {
+		t.Errorf("expected group month 2024-01-01, got %s", group.Month.String())
 	}
 }
 
@@ -1326,8 +1488,8 @@ func TestGetTransaction(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/transactions/txn-123" {
-		t.Errorf("expected /budgets/budget-123/transactions/txn-123, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/transactions/txn-123" {
+		t.Errorf("expected /plans/budget-123/transactions/txn-123, got %s", receivedPath)
 	}
 	if resp.Data.Transaction.ID != "txn-123" {
 		t.Errorf("expected transaction ID txn-123, got %s", resp.Data.Transaction.ID)
@@ -1372,8 +1534,8 @@ func TestUpdateTransactions(t *testing.T) {
 	if receivedMethod != "PATCH" {
 		t.Errorf("expected PATCH, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/transactions" {
-		t.Errorf("expected /budgets/budget-123/transactions, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/transactions" {
+		t.Errorf("expected /plans/budget-123/transactions, got %s", receivedPath)
 	}
 
 	var sentData UpdateTransactionsRequest
@@ -1414,8 +1576,8 @@ func TestImportTransactions(t *testing.T) {
 	if receivedMethod != "POST" {
 		t.Errorf("expected POST, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/transactions/import" {
-		t.Errorf("expected /budgets/budget-123/transactions/import, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/transactions/import" {
+		t.Errorf("expected /plans/budget-123/transactions/import, got %s", receivedPath)
 	}
 	if len(resp.Data.TransactionIDs) != 2 {
 		t.Errorf("expected 2 transaction IDs, got %d", len(resp.Data.TransactionIDs))
@@ -1445,8 +1607,8 @@ func TestAccountTransactions(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/accounts/acct-1/transactions" {
-		t.Errorf("expected /budgets/budget-123/accounts/acct-1/transactions, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/accounts/acct-1/transactions" {
+		t.Errorf("expected /plans/budget-123/accounts/acct-1/transactions, got %s", receivedPath)
 	}
 	if len(resp.Data.Transactions) != 1 {
 		t.Fatalf("expected 1 transaction, got %d", len(resp.Data.Transactions))
@@ -1479,8 +1641,8 @@ func TestCategoryTransactions(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/categories/cat-1/transactions" {
-		t.Errorf("expected /budgets/budget-123/categories/cat-1/transactions, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/categories/cat-1/transactions" {
+		t.Errorf("expected /plans/budget-123/categories/cat-1/transactions, got %s", receivedPath)
 	}
 	if len(resp.Data.Transactions) != 1 {
 		t.Fatalf("expected 1 transaction, got %d", len(resp.Data.Transactions))
@@ -1513,8 +1675,8 @@ func TestPayeeTransactions(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/payees/payee-1/transactions" {
-		t.Errorf("expected /budgets/budget-123/payees/payee-1/transactions, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/payees/payee-1/transactions" {
+		t.Errorf("expected /plans/budget-123/payees/payee-1/transactions, got %s", receivedPath)
 	}
 	if len(resp.Data.Transactions) != 1 {
 		t.Fatalf("expected 1 transaction, got %d", len(resp.Data.Transactions))
@@ -1547,8 +1709,8 @@ func TestMonthTransactions(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/months/2024-01-01/transactions" {
-		t.Errorf("expected /budgets/budget-123/months/2024-01-01/transactions, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/months/2024-01-01/transactions" {
+		t.Errorf("expected /plans/budget-123/months/2024-01-01/transactions, got %s", receivedPath)
 	}
 	if len(resp.Data.Transactions) != 1 {
 		t.Fatalf("expected 1 transaction, got %d", len(resp.Data.Transactions))
@@ -1592,8 +1754,8 @@ func TestCreateScheduledTransaction(t *testing.T) {
 	if receivedMethod != "POST" {
 		t.Errorf("expected POST, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/scheduled_transactions" {
-		t.Errorf("expected /budgets/budget-123/scheduled_transactions, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/scheduled_transactions" {
+		t.Errorf("expected /plans/budget-123/scheduled_transactions, got %s", receivedPath)
 	}
 
 	var sentData CreateScheduledTransactionRequest
@@ -1634,8 +1796,8 @@ func TestGetScheduledTransaction(t *testing.T) {
 	if receivedMethod != "GET" {
 		t.Errorf("expected GET, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/scheduled_transactions/st-123" {
-		t.Errorf("expected /budgets/budget-123/scheduled_transactions/st-123, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/scheduled_transactions/st-123" {
+		t.Errorf("expected /plans/budget-123/scheduled_transactions/st-123, got %s", receivedPath)
 	}
 	if resp.Data.ScheduledTransaction.ID != "st-123" {
 		t.Errorf("expected ID st-123, got %s", resp.Data.ScheduledTransaction.ID)
@@ -1681,8 +1843,8 @@ func TestUpdateScheduledTransaction(t *testing.T) {
 	if receivedMethod != "PUT" {
 		t.Errorf("expected PUT, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/scheduled_transactions/st-123" {
-		t.Errorf("expected /budgets/budget-123/scheduled_transactions/st-123, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/scheduled_transactions/st-123" {
+		t.Errorf("expected /plans/budget-123/scheduled_transactions/st-123, got %s", receivedPath)
 	}
 
 	var sentData UpdateScheduledTransactionRequest
@@ -1720,8 +1882,8 @@ func TestDeleteScheduledTransaction(t *testing.T) {
 	if receivedMethod != "DELETE" {
 		t.Errorf("expected DELETE, got %s", receivedMethod)
 	}
-	if receivedPath != "/budgets/budget-123/scheduled_transactions/st-123" {
-		t.Errorf("expected /budgets/budget-123/scheduled_transactions/st-123, got %s", receivedPath)
+	if receivedPath != "/plans/budget-123/scheduled_transactions/st-123" {
+		t.Errorf("expected /plans/budget-123/scheduled_transactions/st-123, got %s", receivedPath)
 	}
 	if !resp.Data.ScheduledTransaction.Deleted {
 		t.Errorf("expected scheduled transaction to be marked as deleted")
