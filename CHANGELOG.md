@@ -1,6 +1,6 @@
 # Changelog & Upgrade Guide
 
-### Unreleased
+### v1.7.0 (2026-05-21)
 
 Update the bundled YNAB OpenAPI spec from API version 1.77.0 to 1.84.0.
 YNAB now refers to budgets as plans in the API, and the client now sends
