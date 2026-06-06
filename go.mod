@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/juju/ansiterm v1.0.0
 	github.com/kevinburke/go-types v0.0.0-20260305071322-1b56584224d7
-	github.com/kevinburke/rest v0.0.0-20250718180114-1a15e4f2364f
+	github.com/kevinburke/rest/v2 v2.15.0
 	golang.org/x/term v0.43.0
 	golang.org/x/text v0.37.0
 )

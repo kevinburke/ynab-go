@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/kevinburke/go-types"
-	"github.com/kevinburke/rest/restclient"
+	"github.com/kevinburke/rest/v2/restclient"
 )
 
 type Client struct {
