@@ -14,12 +14,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
+	"text/tabwriter"
 	"time"
 
-	"github.com/juju/ansiterm"
 	"github.com/kevinburke/ynab-go"
-	"golang.org/x/term"
 )
 
 func getAccounts(client *ynab.Client, budgetID string) ([]*ynab.Account, error) {
@@ -101,13 +99,6 @@ func isOutflow(accountMap map[string]*ynab.Account, tx *ynab.Transaction, schedu
 		return true
 	}
 	return false
-}
-
-var isTTY bool
-var isTTYOnce sync.Once
-
-func isTerminal() {
-	isTTY = term.IsTerminal(int(os.Stdout.Fd()))
 }
 
 func main() {
@@ -261,7 +252,7 @@ func main() {
 	// Amount of money that's been spent from the current bucket.
 	bucketSpend := int64(0)
 	buf := new(bytes.Buffer)
-	tw := ansiterm.NewTabWriter(buf, 0, 0, 1, ' ', 0)
+	tw := tabwriter.NewWriter(buf, 0, 0, 1, ' ', 0)
 	for i := range spending {
 		amount := -1 * spending[i].Amount
 		if amount == 0 {
@@ -284,13 +275,7 @@ func main() {
 		}
 		ageHours := time.Time(spending[i].Date).Sub(time.Time(buckets[currentBucketIdx].Date)).Hours()
 		ageOfMoney := int(math.Round(float64(ageHours) / 24))
-		isTTYOnce.Do(isTerminal)
-		var preamble string
-		if isTTY && len(spending)-i <= 10 {
-			preamble = fmt.Sprintf("\033[38;05;160m%3d\033[0m", ageOfMoney)
-		} else {
-			preamble = fmt.Sprintf("%3d", ageOfMoney)
-		}
+		preamble := fmt.Sprintf("%3d", ageOfMoney)
 		io.WriteString(tw, fmt.Sprintf("%s\tEarned: %s\tSpent: %s\t%s\t%s\t%s\n",
 			preamble, buckets[currentBucketIdx].Date.String(),
 			spending[i].Date.String(), "$"+amt(-1*spending[i].Amount),
