@@ -13,7 +13,7 @@ jobs:
       with:
         go-version: '${{ matrix.go-version }}'
       # https://github.com/actions/checkout/tags
-    - uses: actions/checkout@v6.0.3
+    - uses: actions/checkout@v7.0.0
       with:
          path: './src/github.com/kevinburke/ynab-go'
     # staticcheck needs this for GOPATH
