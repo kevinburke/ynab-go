@@ -4,5 +4,5 @@ github.com/kevinburke/go-types v1.3.0 h1:YJfPk8jH1OjHCJu4oL/ZXiNKFfRVj4T2snsDq5J
 github.com/kevinburke/go-types v1.3.0/go.mod h1:DvCvGeTLkbt6IYbRTmF1HvLYrFYgINh+OT/9spJreBY=
 github.com/kevinburke/rest/v2 v2.15.0 h1:FaOMZqJMoHBSZheqqKWSkh37RksWEKc70douAHFB0wE=
 github.com/kevinburke/rest/v2 v2.15.0/go.mod h1:X3cM9MKkTi8gorCGaMZ9q0/a/y908Ea1pOI9ha4zC7o=
-golang.org/x/text v0.39.0 h1:UbZz4pLOvn600D6Oh6GGEI6VAmndrEBLv8/6BEXzyus=
-golang.org/x/text v0.39.0/go.mod h1:3UwRclnC2g0TU9x8PZiyfOajCd1zaUNHF9cvqcQZ+ZM=
+golang.org/x/text v0.40.0 h1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=
+golang.org/x/text v0.40.0/go.mod h1:hpnzDAfGV753zIKo+wk3u1bVKCGPbrnF7+7LBF/UHVY=
