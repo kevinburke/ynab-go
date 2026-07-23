@@ -9,7 +9,7 @@ jobs:
     steps:
     - name: Install Go
       # https://github.com/actions/setup-go/tags
-      uses: actions/setup-go@v6.5.0
+      uses: actions/setup-go@v7.0.0
       with:
         go-version: '${{ matrix.go-version }}'
       # https://github.com/actions/checkout/tags
