@@ -1,6 +1,6 @@
 module github.com/kevinburke/ynab-go
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/kevinburke/go-types v1.3.0

@@ -31,6 +31,8 @@ commands work without writing any Go.
 
 ## Install
 
+Requires Go 1.26 or newer. CI tests Go 1.26 and 1.27.
+
 The library:
 
 ```bash
